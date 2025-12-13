@@ -11,6 +11,9 @@ let transaksiList = [];
 let sumberSaldoList = [];
 let filterJenis = 'semua';
 let filterPeriode = 'semua';
+let dateRangeStart = null;
+let dateRangeEnd = null;
+let currentCalendarMonth = new Date();
 
 // ==========================================
 // INITIALIZATION
@@ -78,7 +81,41 @@ function setupEventListeners() {
     const filterPeriodeEl = document.getElementById('filterPeriode');
     filterPeriodeEl.addEventListener('change', function(e) {
         filterPeriode = e.target.value;
-        renderTransactions();
+        if (filterPeriode === 'custom') {
+            showDateRangePicker();
+        } else {
+            hideDateRangePicker();
+            dateRangeStart = null;
+            dateRangeEnd = null;
+            renderTransactions();
+        }
+    });
+    
+    // Date range picker buttons
+    document.getElementById('prevMonth').addEventListener('click', function() {
+        currentCalendarMonth.setMonth(currentCalendarMonth.getMonth() - 1);
+        renderCalendar();
+    });
+    
+    document.getElementById('nextMonth').addEventListener('click', function() {
+        currentCalendarMonth.setMonth(currentCalendarMonth.getMonth() + 1);
+        renderCalendar();
+    });
+    
+    document.getElementById('clearDateRange').addEventListener('click', function() {
+        dateRangeStart = null;
+        dateRangeEnd = null;
+        renderCalendar();
+        updateDateRangeInfo();
+    });
+    
+    document.getElementById('applyDateRange').addEventListener('click', function() {
+        if (dateRangeStart && dateRangeEnd) {
+            renderTransactions();
+            hideDateRangePicker();
+        } else {
+            showToast('Pilih tanggal awal dan akhir terlebih dahulu', 'warning');
+        }
     });
     
     // Form sumber saldo
@@ -101,6 +138,12 @@ function setupEventListeners() {
     // Format nominal input dengan pemisah titik
     const nominalInput = document.getElementById('nominal');
     nominalInput.addEventListener('input', function(e) {
+        formatNominalInput(e.target);
+    });
+    
+    // Format jumlah saldo input dengan pemisah titik
+    const jumlahSaldoInput = document.getElementById('jumlahSaldo');
+    jumlahSaldoInput.addEventListener('input', function(e) {
         formatNominalInput(e.target);
     });
     
@@ -249,6 +292,21 @@ function getFilteredTransactions() {
                 case 'bulan-ini':
                     return transaksiDate.getMonth() === now.getMonth() && 
                            transaksiDate.getFullYear() === now.getFullYear();
+                
+                case 'custom':
+                    if (dateRangeStart && dateRangeEnd) {
+                        const startParts = dateRangeStart.split('-');
+                        const endParts = dateRangeEnd.split('-');
+                        const startDate = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
+                        const endDate = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
+                        
+                        // Parse transaksi date dengan format yang sama
+                        const tglParts = t.tanggal.split('-');
+                        const transaksiDateParsed = new Date(parseInt(tglParts[0]), parseInt(tglParts[1]) - 1, parseInt(tglParts[2]));
+                        
+                        return transaksiDateParsed >= startDate && transaksiDateParsed <= endDate;
+                    }
+                    return true;
                     
                 default:
                     return true;
@@ -372,22 +430,30 @@ function updateSummary() {
 // ==========================================
 
 function deleteTransaksi(id) {
-    if (!confirm('Yakin ingin menghapus transaksi ini?')) {
-        return;
-    }
+    // Cari transaksi untuk ditampilkan di konfirmasi
+    const transaksi = transaksiList.find(t => t.id === id);
+    if (!transaksi) return;
     
-    // Hapus dari array
-    transaksiList = transaksiList.filter(t => t.id !== id);
+    const jenisText = transaksi.jenis === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran';
     
-    // Simpan ke localStorage
-    saveDataToStorage();
-    
-    // Update tampilan
-    renderTransactions();
-    updateSummary();
-    
-    // Feedback
-    showToast('Transaksi berhasil dihapus', 'success');
+    // Tampilkan konfirmasi
+    showConfirmDialog(
+        `Yakin ingin menghapus ${jenisText.toLowerCase()} "${transaksi.deskripsi}" sebesar ${formatRupiah(transaksi.nominal)}?`,
+        function() {
+            // Jika OK, hapus
+            transaksiList = transaksiList.filter(t => t.id !== id);
+            
+            // Simpan ke localStorage
+            saveDataToStorage();
+            
+            // Update tampilan
+            renderTransactions();
+            updateSummary();
+            
+            // Feedback
+            showToast(`${jenisText} berhasil dihapus`, 'success');
+        }
+    );
 }
 
 // ==========================================
@@ -552,6 +618,62 @@ function showToast(message, type = 'success', title = '') {
 }
 
 // ==========================================
+// CONFIRM DIALOG
+// ==========================================
+
+function showConfirmDialog(message, onConfirm) {
+    // Buat overlay
+    const overlay = document.createElement('div');
+    overlay.className = 'confirm-overlay';
+    
+    // Buat dialog
+    const dialog = document.createElement('div');
+    dialog.className = 'confirm-dialog';
+    
+    dialog.innerHTML = `
+        <div class="confirm-icon">⚠️</div>
+        <div class="confirm-message">${escapeHtml(message)}</div>
+        <div class="confirm-buttons">
+            <button class="confirm-btn confirm-cancel">Batal</button>
+            <button class="confirm-btn confirm-ok">OK</button>
+        </div>
+    `;
+    
+    overlay.appendChild(dialog);
+    document.body.appendChild(overlay);
+    
+    // Trigger animation
+    setTimeout(() => {
+        overlay.classList.add('active');
+    }, 10);
+    
+    // Handle button clicks
+    const cancelBtn = dialog.querySelector('.confirm-cancel');
+    const okBtn = dialog.querySelector('.confirm-ok');
+    
+    function closeDialog() {
+        overlay.classList.remove('active');
+        setTimeout(() => {
+            overlay.remove();
+        }, 300);
+    }
+    
+    cancelBtn.addEventListener('click', closeDialog);
+    
+    okBtn.addEventListener('click', function() {
+        closeDialog();
+        if (onConfirm) onConfirm();
+    });
+    
+    // Close on overlay click
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            closeDialog();
+        }
+    });
+}
+
+// ==========================================
 // EXPORT DATA (Optional - untuk backup)
 // ==========================================
 
@@ -597,7 +719,8 @@ function handleSaldoFormSubmit(e) {
     
     // Ambil data dari form
     let namaSumber = document.getElementById('namaSumber').value;
-    const jumlahSaldo = parseFloat(document.getElementById('jumlahSaldo').value);
+    const jumlahSaldoStr = document.getElementById('jumlahSaldo').value.replace(/\./g, '').replace(/,/g, '.');
+    const jumlahSaldo = parseFloat(jumlahSaldoStr);
     
     // Jika Custom, gunakan input custom
     if (namaSumber === 'Custom') {
@@ -605,7 +728,7 @@ function handleSaldoFormSubmit(e) {
     }
     
     // Validasi
-    if (!namaSumber || jumlahSaldo < 0) {
+    if (!namaSumber || isNaN(jumlahSaldo) || jumlahSaldo < 0) {
         showToast('Mohon isi semua field dengan benar!', 'error');
         return;
     }
@@ -613,14 +736,33 @@ function handleSaldoFormSubmit(e) {
     // Cek apakah sumber sudah ada
     const existingIndex = sumberSaldoList.findIndex(s => s.nama.toLowerCase() === namaSumber.toLowerCase());
     
+    let isUpdate = false;
     if (existingIndex !== -1) {
-        // Update yang sudah ada
-        if (confirm(`Sumber "${namaSumber}" sudah ada. Update jumlahnya?`)) {
-            sumberSaldoList[existingIndex].jumlah = jumlahSaldo;
-            sumberSaldoList[existingIndex].updatedAt = new Date().toISOString();
-        } else {
-            return;
-        }
+        // Tampilkan konfirmasi untuk update
+        showConfirmDialog(
+            `Sumber "${namaSumber}" sudah ada dengan saldo ${formatRupiah(sumberSaldoList[existingIndex].jumlah)}. Update menjadi ${formatRupiah(jumlahSaldo)}?`,
+            function() {
+                // Jika OK, update
+                sumberSaldoList[existingIndex].jumlah = jumlahSaldo;
+                sumberSaldoList[existingIndex].updatedAt = new Date().toISOString();
+                
+                // Simpan ke localStorage
+                saveSaldoToStorage();
+                
+                // Reset form
+                e.target.reset();
+                document.getElementById('customSumberGroup').style.display = 'none';
+                
+                // Update tampilan
+                renderSumberSaldo();
+                renderSaldoBreakdown();
+                updateSummary();
+                
+                // Feedback
+                showToast(`${namaSumber} berhasil diupdate menjadi ${formatRupiah(jumlahSaldo)}`, 'success');
+            }
+        );
+        return;
     } else {
         // Buat objek sumber saldo baru
         const sumberSaldo = {
@@ -652,23 +794,29 @@ function handleSaldoFormSubmit(e) {
 }
 
 function deleteSumberSaldo(id) {
-    if (!confirm('Yakin ingin menghapus sumber saldo ini?')) {
-        return;
-    }
+    // Cari nama sumber untuk ditampilkan di konfirmasi
+    const sumber = sumberSaldoList.find(s => s.id === id);
+    if (!sumber) return;
     
-    // Hapus dari array
-    sumberSaldoList = sumberSaldoList.filter(s => s.id !== id);
-    
-    // Simpan ke localStorage
-    saveSaldoToStorage();
-    
-    // Update tampilan
-    renderSumberSaldo();
-    renderSaldoBreakdown();
-    updateSummary();
-    
-    // Feedback
-    showToast('Sumber saldo berhasil dihapus', 'success');
+    // Tampilkan konfirmasi
+    showConfirmDialog(
+        `Yakin ingin menghapus "${sumber.nama}" dengan saldo ${formatRupiah(sumber.jumlah)}?`,
+        function() {
+            // Jika OK, hapus
+            sumberSaldoList = sumberSaldoList.filter(s => s.id !== id);
+            
+            // Simpan ke localStorage
+            saveSaldoToStorage();
+            
+            // Update tampilan
+            renderSumberSaldo();
+            renderSaldoBreakdown();
+            updateSummary();
+            
+            // Feedback
+            showToast(`${sumber.nama} berhasil dihapus`, 'success');
+        }
+    );
 }
 
 function renderSumberSaldo() {
@@ -747,4 +895,159 @@ function renderSaldoBreakdown() {
     `;
     
     container.appendChild(totalItem);
+}
+
+// ==========================================
+// DATE RANGE PICKER
+// ==========================================
+
+function showDateRangePicker() {
+    // Set tanggal start ke hari ini jika belum ada yang dipilih
+    if (!dateRangeStart && !dateRangeEnd) {
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = today.getMonth() + 1;
+        const day = today.getDate();
+        dateRangeStart = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        
+        // Set currentCalendarMonth ke bulan ini
+        currentCalendarMonth = new Date();
+    }
+    
+    document.getElementById('dateRangePicker').style.display = 'block';
+    renderCalendar();
+    updateDateRangeInfo();
+}
+
+function hideDateRangePicker() {
+    document.getElementById('dateRangePicker').style.display = 'none';
+}
+
+function renderCalendar() {
+    const calendar = document.getElementById('calendar');
+    const title = document.getElementById('calendarTitle');
+    
+    const year = currentCalendarMonth.getFullYear();
+    const month = currentCalendarMonth.getMonth();
+    
+    // Update title
+    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
+                        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    title.textContent = `${monthNames[month]} ${year}`;
+    
+    // Get first day of month and total days
+    const firstDay = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    
+    // Clear calendar
+    calendar.innerHTML = '';
+    
+    // Add day headers
+    const dayHeaders = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+    dayHeaders.forEach(day => {
+        const header = document.createElement('div');
+        header.className = 'calendar-day-header';
+        header.textContent = day;
+        calendar.appendChild(header);
+    });
+    
+    // Add empty cells for days before first day
+    for (let i = 0; i < firstDay; i++) {
+        const emptyCell = document.createElement('div');
+        emptyCell.className = 'calendar-day empty';
+        calendar.appendChild(emptyCell);
+    }
+    
+    // Add day cells
+    for (let day = 1; day <= daysInMonth; day++) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day';
+        dayCell.textContent = day;
+        
+        // Format date sebagai YYYY-MM-DD tanpa timezone issues
+        const cellDateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+        const cellDate = new Date(year, month, day);
+        
+        // Check if this date is selected
+        if (dateRangeStart && cellDateStr === dateRangeStart) {
+            dayCell.classList.add('selected', 'start');
+        }
+        if (dateRangeEnd && cellDateStr === dateRangeEnd) {
+            dayCell.classList.add('selected', 'end');
+        }
+        
+        // Check if this date is in range
+        if (dateRangeStart && dateRangeEnd) {
+            const startParts = dateRangeStart.split('-');
+            const endParts = dateRangeEnd.split('-');
+            const start = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
+            const end = new Date(parseInt(endParts[0]), parseInt(endParts[1]) - 1, parseInt(endParts[2]));
+            if (cellDate >= start && cellDate <= end) {
+                dayCell.classList.add('in-range');
+            }
+        }
+        
+        // Add click handler
+        dayCell.addEventListener('click', function() {
+            handleDateClick(cellDateStr);
+        });
+        
+        calendar.appendChild(dayCell);
+    }
+}
+
+function handleDateClick(dateStr) {
+    if (!dateRangeStart || (dateRangeStart && dateRangeEnd)) {
+        // First click or reset after both selected
+        dateRangeStart = dateStr;
+        dateRangeEnd = null;
+    } else {
+        // Second click
+        const startParts = dateRangeStart.split('-');
+        const clickedParts = dateStr.split('-');
+        const start = new Date(parseInt(startParts[0]), parseInt(startParts[1]) - 1, parseInt(startParts[2]));
+        const clicked = new Date(parseInt(clickedParts[0]), parseInt(clickedParts[1]) - 1, parseInt(clickedParts[2]));
+        
+        if (clicked < start) {
+            // Clicked date is before start, swap them
+            dateRangeEnd = dateRangeStart;
+            dateRangeStart = dateStr;
+        } else {
+            dateRangeEnd = dateStr;
+        }
+    }
+    
+    renderCalendar();
+    updateDateRangeInfo();
+}
+
+function updateDateRangeInfo() {
+    const info = document.getElementById('dateRangeInfo');
+    
+    if (!dateRangeStart) {
+        info.textContent = 'Pilih tanggal awal dan akhir';
+    } else if (!dateRangeEnd) {
+        info.textContent = `Dari: ${formatTanggalForPicker(dateRangeStart)} - Pilih tanggal akhir`;
+    } else {
+        info.textContent = `${formatTanggalForPicker(dateRangeStart)} s/d ${formatTanggalForPicker(dateRangeEnd)}`;
+    }
+}
+
+function formatTanggalForPicker(dateStr) {
+    // Parse date dari format YYYY-MM-DD
+    const parts = dateStr.split('-');
+    const year = parseInt(parts[0]);
+    const month = parseInt(parts[1]) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2]);
+    
+    const tanggal = new Date(year, month, day);
+    const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    
+    const namaHari = hari[tanggal.getDay()];
+    const tgl = tanggal.getDate();
+    const namaBulan = bulan[tanggal.getMonth()];
+    const tahun = tanggal.getFullYear();
+    
+    return `${namaHari}, ${tgl} ${namaBulan} ${tahun}`;
 }

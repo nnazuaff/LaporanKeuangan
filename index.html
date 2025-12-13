@@ -109,7 +109,25 @@
                 <option value="hari-ini">Hari Ini</option>
                 <option value="minggu-ini">Minggu Ini</option>
                 <option value="bulan-ini">Bulan Ini</option>
+                <option value="custom">Pilih Tanggal</option>
             </select>
+        </div>
+        
+        <!-- Date Range Picker -->
+        <div id="dateRangePicker" class="date-range-picker" style="display: none;">
+            <div class="date-range-header">
+                <button class="date-nav-btn" id="prevMonth">‹</button>
+                <div class="date-range-title" id="calendarTitle"></div>
+                <button class="date-nav-btn" id="nextMonth">›</button>
+            </div>
+            <div class="date-range-calendar" id="calendar"></div>
+            <div class="date-range-footer">
+                <div class="date-range-info" id="dateRangeInfo">Pilih tanggal awal dan akhir</div>
+                <div class="date-range-actions">
+                    <button class="btn-range-clear" id="clearDateRange">Reset</button>
+                    <button class="btn-range-apply" id="applyDateRange">Terapkan</button>
+                </div>
+            </div>
         </div>
     </section>
 
@@ -171,7 +189,7 @@
                     
                     <div class="form-group">
                         <label for="jumlahSaldo">Jumlah Saldo (Rp)</label>
-                        <input type="number" id="jumlahSaldo" placeholder="0" min="0" step="1000" required>
+                        <input type="text" id="jumlahSaldo" placeholder="0" inputmode="decimal" required>
                     </div>
                     
                     <button type="submit" class="btn-submit">Tambah Sumber</button>
