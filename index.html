@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#4CAF50">
+    <meta name="description" content="Aplikasi Laporan Keuangan Pribadi - Offline">
+    
+    <title>Laporan Keuangan</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <!-- Icons -->
+    <link rel="icon" type="image/png" href="icon-192.png">
+    <link rel="apple-touch-icon" href="icon-192.png">
+    
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <h1>💰 Laporan Keuangan</h1>
+        <p class="subtitle">Kelola keuangan pribadi Anda</p>
+    </header>
+
+    <!-- Ringkasan Saldo -->
+    <section class="summary">
+        <div class="summary-card saldo">
+            <span class="label">Saldo Akhir</span>
+            <span class="amount" id="saldoAkhir">Rp 0</span>
+        </div>
+        <div class="summary-row">
+            <div class="summary-card pemasukan">
+                <span class="label">Pemasukan</span>
+                <span class="amount" id="totalPemasukan">Rp 0</span>
+            </div>
+            <div class="summary-card pengeluaran">
+                <span class="label">Pengeluaran</span>
+                <span class="amount" id="totalPengeluaran">Rp 0</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Form Input Transaksi -->
+    <section class="form-section">
+        <h2>Tambah Transaksi</h2>
+        <form id="formTransaksi">
+            <div class="form-group">
+                <label for="tanggal">Tanggal</label>
+                <input type="date" id="tanggal" required>
+            </div>
+
+            <div class="form-group">
+                <label for="deskripsi">Deskripsi</label>
+                <input type="text" id="deskripsi" placeholder="Contoh: Belanja bulanan" required>
+            </div>
+
+            <div class="form-group">
+                <label for="nominal">Nominal (Rp)</label>
+                <input type="number" id="nominal" placeholder="0" min="0" required>
+            </div>
+
+            <div class="form-group">
+                <label for="jenis">Jenis Transaksi</label>
+                <select id="jenis" required>
+                    <option value="pemasukan">Pemasukan</option>
+                    <option value="pengeluaran">Pengeluaran</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="kategori">Kategori</label>
+                <select id="kategori" required>
+                    <option value="Makan">Makan</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Hiburan">Hiburan</option>
+                    <option value="Belanja">Belanja</option>
+                    <option value="Tagihan">Tagihan</option>
+                    <option value="Kesehatan">Kesehatan</option>
+                    <option value="Gaji">Gaji</option>
+                    <option value="Investasi">Investasi</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
+            </div>
+
+            <button type="submit" class="btn-submit">Tambah Transaksi</button>
+        </form>
+    </section>
+
+    <!-- Filter dan Sorting -->
+    <section class="filter-section">
+        <h2>Daftar Transaksi</h2>
+        <div class="filter-controls">
+            <select id="filterJenis" class="filter-select">
+                <option value="semua">Semua Jenis</option>
+                <option value="pemasukan">Pemasukan</option>
+                <option value="pengeluaran">Pengeluaran</option>
+            </select>
+            <select id="filterPeriode" class="filter-select">
+                <option value="semua">Semua Periode</option>
+                <option value="hari-ini">Hari Ini</option>
+                <option value="minggu-ini">Minggu Ini</option>
+                <option value="bulan-ini">Bulan Ini</option>
+            </select>
+        </div>
+    </section>
+
+    <!-- Daftar Transaksi -->
+    <section class="transactions-section">
+        <div id="daftarTransaksi" class="transactions-list">
+            <!-- Transaksi akan dimuat di sini via JavaScript -->
+        </div>
+        <div id="emptyState" class="empty-state">
+            <p>📝 Belum ada transaksi</p>
+            <p class="empty-subtitle">Mulai tambahkan transaksi keuangan Anda</p>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+        <p>Data tersimpan lokal di perangkat Anda</p>
+    </footer>
+
+    <!-- JavaScript -->
+    <script src="app.js"></script>
+</body>
+</html>
