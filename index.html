@@ -23,6 +23,7 @@
     <header class="header">
         <h1>💰 Laporan Keuangan</h1>
         <p class="subtitle">Kelola keuangan pribadi Anda</p>
+        <button class="btn-settings" onclick="toggleSaldoModal()">⚙️ Atur Saldo</button>
     </header>
 
     <!-- Ringkasan Saldo -->
@@ -40,6 +41,11 @@
                 <span class="label">Pengeluaran</span>
                 <span class="amount" id="totalPengeluaran">Rp 0</span>
             </div>
+        </div>
+        
+        <!-- Breakdown Saldo per Sumber -->
+        <div class="saldo-breakdown" id="saldoBreakdown">
+            <!-- Will be populated by JavaScript -->
         </div>
     </section>
 
@@ -117,6 +123,70 @@
             <p class="empty-subtitle">Mulai tambahkan transaksi keuangan Anda</p>
         </div>
     </section>
+
+    <!-- Modal Pengaturan Saldo -->
+    <div id="saldoModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>⚙️ Atur Saldo Manual</h2>
+                <button class="btn-close" onclick="toggleSaldoModal()">✕</button>
+            </div>
+            
+            <div class="modal-body">
+                <p class="modal-info">Atur saldo awal dari berbagai sumber uang Anda</p>
+                
+                <!-- Form Tambah Sumber Saldo -->
+                <form id="formSumberSaldo" class="saldo-form">
+                    <div class="form-group">
+                        <label for="namaSumber">Nama Sumber</label>
+                        <select id="namaSumber">
+                            <option value="">-- Pilih atau ketik manual --</option>
+                            <optgroup label="Bank">
+                                <option value="Bank BNI">Bank BNI</option>
+                                <option value="Bank BCA">Bank BCA</option>
+                                <option value="Bank Mandiri">Bank Mandiri</option>
+                                <option value="Bank BRI">Bank BRI</option>
+                                <option value="Bank BTN">Bank BTN</option>
+                                <option value="Bank CIMB Niaga">Bank CIMB Niaga</option>
+                            </optgroup>
+                            <optgroup label="E-Wallet">
+                                <option value="GoPay">GoPay</option>
+                                <option value="OVO">OVO</option>
+                                <option value="Dana">Dana</option>
+                                <option value="ShopeePay">ShopeePay</option>
+                                <option value="LinkAja">LinkAja</option>
+                            </optgroup>
+                            <optgroup label="Lainnya">
+                                <option value="Tunai">Tunai</option>
+                                <option value="Tabungan">Tabungan</option>
+                                <option value="Custom">Custom (ketik sendiri)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group" id="customSumberGroup" style="display: none;">
+                        <label for="namaSumberCustom">Nama Sumber Custom</label>
+                        <input type="text" id="namaSumberCustom" placeholder="Contoh: Celengan">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="jumlahSaldo">Jumlah Saldo (Rp)</label>
+                        <input type="number" id="jumlahSaldo" placeholder="0" min="0" step="1000" required>
+                    </div>
+                    
+                    <button type="submit" class="btn-submit">Tambah Sumber</button>
+                </form>
+                
+                <!-- Daftar Sumber Saldo -->
+                <div class="sumber-saldo-list">
+                    <h3>Daftar Sumber Saldo</h3>
+                    <div id="daftarSumberSaldo">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Footer -->
     <footer class="footer">
