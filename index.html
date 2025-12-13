@@ -21,7 +21,25 @@
 <body>
     <!-- Header -->
     <header class="header">
-        <h1>💰 Laporan Keuangan</h1>
+        <div class="header-logo">
+            <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <!-- Wallet body -->
+                <rect x="8" y="12" width="24" height="18" rx="3" fill="white" opacity="0.95"/>
+                <!-- Wallet flap -->
+                <path d="M8 12C8 10.3431 9.34315 9 11 9H29C30.6569 9 32 10.3431 32 12V18H8V12Z" fill="rgba(255,255,255,0.3)"/>
+                <!-- Card slot -->
+                <rect x="14" y="21" width="12" height="2" rx="1" fill="#1ABC9C"/>
+                <!-- Rupiah symbol -->
+                <text x="20" y="27" font-size="7" font-weight="bold" fill="#16A085" text-anchor="middle" font-family="Arial, sans-serif">Rp</text>
+                <!-- Coin 1 -->
+                <circle cx="30" cy="8" r="3" fill="white" opacity="0.8"/>
+                <circle cx="30" cy="8" r="2.5" stroke="#16A085" stroke-width="0.8" fill="none"/>
+                <!-- Coin 2 -->
+                <circle cx="10" cy="32" r="2.5" fill="white" opacity="0.7"/>
+                <circle cx="10" cy="32" r="2" stroke="#16A085" stroke-width="0.7" fill="none"/>
+            </svg>
+        </div>
+        <h1>Laporan Keuangan</h1>
         <p class="subtitle">Kelola keuangan pribadi Anda</p>
         <button class="btn-settings" onclick="toggleSaldoModal()">⚙️ Atur Saldo</button>
     </header>
