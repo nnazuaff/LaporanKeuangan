@@ -98,6 +98,12 @@ function setupEventListeners() {
         }
     });
     
+    // Format nominal input dengan pemisah titik
+    const nominalInput = document.getElementById('nominal');
+    nominalInput.addEventListener('input', function(e) {
+        formatNominalInput(e.target);
+    });
+    
     // Close modal when clicking outside
     const modal = document.getElementById('saldoModal');
     modal.addEventListener('click', function(e) {
@@ -122,17 +128,19 @@ function handleFormSubmit(e) {
     // Ambil data dari form
     const tanggal = document.getElementById('tanggal').value;
     const deskripsi = document.getElementById('deskripsi').value.trim();
-    const nominal = parseFloat(document.getElementById('nominal').value);
+    const nominalStr = document.getElementById('nominal').value.replace(/\./g, '').replace(/,/g, '.');
+    const nominal = parseFloat(nominalStr);
     const jenis = document.getElementById('jenis').value;
     const kategori = document.getElementById('kategori').value;
     
     // Validasi
-    if (!deskripsi || nominal <= 0) {
+    if (!deskripsi || isNaN(nominal) || nominal <= 0) {
         showToast('Mohon isi semua field dengan benar!', 'error');
         return;
     }
     
-    // Buat objek transaksi
+    // Buat objek transaksi dengan timestamp WIB
+    const now = new Date();
     const transaksi = {
         id: Date.now(), // ID unik berdasarkan timestamp
         tanggal: tanggal,
@@ -140,7 +148,8 @@ function handleFormSubmit(e) {
         nominal: nominal,
         jenis: jenis,
         kategori: kategori,
-        createdAt: new Date().toISOString()
+        createdAt: now.toISOString(),
+        createdAtWIB: formatWaktuWIB(now)
     };
     
     // Tambahkan ke array
@@ -275,10 +284,36 @@ function renderTransactions() {
     emptyState.classList.add('hidden');
     container.style.display = 'flex';
     
-    // Render setiap transaksi
+    // Group transaksi berdasarkan tanggal
+    const groupedByDate = {};
     filtered.forEach(transaksi => {
-        const item = createTransactionElement(transaksi);
-        container.appendChild(item);
+        const dateKey = transaksi.tanggal;
+        if (!groupedByDate[dateKey]) {
+            groupedByDate[dateKey] = [];
+        }
+        groupedByDate[dateKey].push(transaksi);
+    });
+    
+    // Urutkan tanggal (terbaru dulu)
+    const sortedDates = Object.keys(groupedByDate).sort((a, b) => new Date(b) - new Date(a));
+    
+    // Render per grup tanggal
+    sortedDates.forEach(dateKey => {
+        // Tambahkan header tanggal
+        const dateHeader = document.createElement('div');
+        dateHeader.className = 'date-separator';
+        dateHeader.innerHTML = `
+            <span class="date-separator-line"></span>
+            <span class="date-separator-text">${formatTanggalLengkap(dateKey)}</span>
+            <span class="date-separator-line"></span>
+        `;
+        container.appendChild(dateHeader);
+        
+        // Render transaksi dalam grup ini
+        groupedByDate[dateKey].forEach(transaksi => {
+            const item = createTransactionElement(transaksi);
+            container.appendChild(item);
+        });
     });
 }
 
@@ -290,6 +325,9 @@ function createTransactionElement(transaksi) {
         ? `+${formatRupiah(transaksi.nominal)}`
         : `-${formatRupiah(transaksi.nominal)}`;
     
+    // Format waktu WIB
+    const waktuWIB = transaksi.createdAtWIB || (transaksi.createdAt ? formatWaktuWIB(new Date(transaksi.createdAt)) : '');
+    
     div.innerHTML = `
         <div class="transaction-info">
             <div class="transaction-header">
@@ -297,8 +335,8 @@ function createTransactionElement(transaksi) {
                 <div class="transaction-amount ${transaksi.jenis}">${formatNominal}</div>
             </div>
             <div class="transaction-meta">
-                <span class="transaction-tanggal">📅 ${formatTanggal(transaksi.tanggal)}</span>
-                <span class="transaction-kategori">${transaksi.kategori}</span>
+                <span class="transaction-kategori">🏷️ ${transaksi.kategori}</span>
+                ${waktuWIB ? `<span class="transaction-waktu">🕐 ${waktuWIB}</span>` : ''}
             </div>
         </div>
         <button class="btn-delete" onclick="deleteTransaksi(${transaksi.id})">Hapus</button>
@@ -357,13 +395,82 @@ function deleteTransaksi(id) {
 // ==========================================
 
 function formatRupiah(angka) {
-    return 'Rp ' + angka.toLocaleString('id-ID');
+    // Support untuk desimal
+    return 'Rp ' + angka.toLocaleString('id-ID', { 
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2 
+    });
 }
 
 function formatTanggal(tanggalStr) {
     const options = { day: '2-digit', month: 'short', year: 'numeric' };
     const tanggal = new Date(tanggalStr + 'T00:00:00');
     return tanggal.toLocaleDateString('id-ID', options);
+}
+
+function formatTanggalLengkap(tanggalStr) {
+    const tanggal = new Date(tanggalStr + 'T00:00:00');
+    const hari = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const bulan = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    
+    const namaHari = hari[tanggal.getDay()];
+    const tgl = tanggal.getDate();
+    const namaBulan = bulan[tanggal.getMonth()];
+    const tahun = tanggal.getFullYear();
+    
+    // Cek apakah hari ini
+    const today = new Date();
+    const isToday = tanggal.getDate() === today.getDate() && 
+                    tanggal.getMonth() === today.getMonth() && 
+                    tanggal.getFullYear() === today.getFullYear();
+    
+    if (isToday) {
+        return `Hari Ini - ${namaHari}, ${tgl} ${namaBulan} ${tahun}`;
+    }
+    
+    return `${namaHari}, ${tgl} ${namaBulan} ${tahun}`;
+}
+
+function formatWaktuWIB(date) {
+    // Konversi ke WIB (UTC+7)
+    const wibDate = new Date(date.getTime() + (7 * 60 * 60 * 1000));
+    
+    const jam = wibDate.getUTCHours().toString().padStart(2, '0');
+    const menit = wibDate.getUTCMinutes().toString().padStart(2, '0');
+    const detik = wibDate.getUTCSeconds().toString().padStart(2, '0');
+    
+    return `${jam}:${menit}:${detik} WIB`;
+}
+
+function formatNominalInput(input) {
+    // Ambil nilai tanpa format
+    let value = input.value.replace(/\./g, '').replace(/,/g, '.');
+    
+    // Simpan posisi kursor
+    const cursorPosition = input.selectionStart;
+    const oldLength = input.value.length;
+    
+    // Cek apakah ada desimal
+    const parts = value.split('.');
+    let integerPart = parts[0];
+    const decimalPart = parts[1];
+    
+    // Format bagian integer dengan pemisah titik
+    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    
+    // Gabungkan kembali dengan desimal jika ada
+    let formattedValue = integerPart;
+    if (decimalPart !== undefined) {
+        formattedValue += ',' + decimalPart;
+    }
+    
+    // Set nilai baru
+    input.value = formattedValue;
+    
+    // Restore posisi kursor
+    const newLength = input.value.length;
+    const newCursorPosition = cursorPosition + (newLength - oldLength);
+    input.setSelectionRange(newCursorPosition, newCursorPosition);
 }
 
 function escapeHtml(text) {
