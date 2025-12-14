@@ -5,6 +5,7 @@
 // Konstanta
 const STORAGE_KEY = 'laporan_keuangan_transaksi';
 const STORAGE_KEY_SALDO = 'laporan_keuangan_saldo_manual';
+const STORAGE_KEY_PIN = 'laporan_keuangan_pin';
 
 // State aplikasi
 let transaksiList = [];
@@ -14,6 +15,9 @@ let filterPeriode = 'semua';
 let dateRangeStart = null;
 let dateRangeEnd = null;
 let currentCalendarMonth = new Date();
+let currentPinInput = '';
+let pinMode = 'verify'; // 'setup', 'verify', 'change', 'confirm'
+let tempPin = '';
 
 // ==========================================
 // INITIALIZATION
@@ -25,6 +29,25 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initApp() {
+    // Cek PIN terlebih dahulu
+    checkPinAndInitialize();
+}
+
+function checkPinAndInitialize() {
+    const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
+    
+    if (!savedPin) {
+        // Belum ada PIN, setup PIN baru
+        pinMode = 'setup';
+        showPinModal();
+    } else {
+        // Sudah ada PIN, verifikasi
+        pinMode = 'verify';
+        showPinModal();
+    }
+}
+
+function initializeApp() {
     // Load data dari localStorage
     loadDataFromStorage();
     loadSaldoFromStorage();
@@ -495,6 +518,239 @@ function formatTanggalLengkap(tanggalStr) {
     }
     
     return `${namaHari}, ${tgl} ${namaBulan} ${tahun}`;
+}
+
+// ==========================================
+// PIN MANAGEMENT
+// ==========================================
+
+function showPinModal() {
+    const modal = document.getElementById('pinModal');
+    const title = document.getElementById('pinTitle');
+    const subtitle = document.getElementById('pinSubtitle');
+    const resetBtn = document.getElementById('btnResetPin');
+    
+    // Setup tampilan berdasarkan mode
+    if (pinMode === 'setup') {
+        title.textContent = 'Buat PIN Baru';
+        subtitle.textContent = 'Buat PIN 4 digit untuk keamanan aplikasi';
+        resetBtn.style.display = 'none';
+    } else if (pinMode === 'verify') {
+        title.textContent = 'Masukkan PIN';
+        subtitle.textContent = 'Gunakan PIN untuk membuka aplikasi';
+        resetBtn.style.display = 'block';
+    } else if (pinMode === 'change') {
+        title.textContent = 'PIN Lama';
+        subtitle.textContent = 'Masukkan PIN lama Anda';
+        resetBtn.style.display = 'none';
+    } else if (pinMode === 'confirm') {
+        title.textContent = 'Konfirmasi PIN Baru';
+        subtitle.textContent = 'Masukkan ulang PIN baru Anda';
+        resetBtn.style.display = 'none';
+    }
+    
+    modal.classList.add('active');
+    currentPinInput = '';
+    updatePinDots();
+    clearPinError();
+    
+    // Setup keypad listeners
+    setupPinKeypad();
+}
+
+function setupPinKeypad() {
+    const keys = document.querySelectorAll('.pin-key');
+    
+    keys.forEach(key => {
+        // Remove old listeners
+        const newKey = key.cloneNode(true);
+        key.parentNode.replaceChild(newKey, key);
+    });
+    
+    // Add new listeners
+    document.querySelectorAll('.pin-key').forEach(key => {
+        key.addEventListener('click', function() {
+            const value = this.getAttribute('data-value');
+            const action = this.getAttribute('data-action');
+            
+            if (value !== null) {
+                handlePinInput(value);
+            } else if (action === 'delete') {
+                handlePinDelete();
+            }
+        });
+    });
+    
+    // Reset PIN button
+    document.getElementById('btnResetPin').addEventListener('click', handleResetPin);
+}
+
+function handlePinInput(digit) {
+    if (currentPinInput.length < 4) {
+        currentPinInput += digit;
+        updatePinDots();
+        
+        if (currentPinInput.length === 4) {
+            setTimeout(() => {
+                validatePin();
+            }, 300);
+        }
+    }
+}
+
+function handlePinDelete() {
+    if (currentPinInput.length > 0) {
+        currentPinInput = currentPinInput.slice(0, -1);
+        updatePinDots();
+        clearPinError();
+    }
+}
+
+function updatePinDots() {
+    for (let i = 1; i <= 4; i++) {
+        const dot = document.getElementById(`dot${i}`);
+        if (i <= currentPinInput.length) {
+            dot.classList.add('filled');
+        } else {
+            dot.classList.remove('filled');
+        }
+    }
+}
+
+function validatePin() {
+    const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
+    
+    if (pinMode === 'setup') {
+        // Mode setup: simpan PIN sementara untuk konfirmasi
+        tempPin = currentPinInput;
+        pinMode = 'confirm';
+        currentPinInput = '';
+        updatePinDots();
+        const title = document.getElementById('pinTitle');
+        const subtitle = document.getElementById('pinSubtitle');
+        title.textContent = 'Konfirmasi PIN';
+        subtitle.textContent = 'Masukkan ulang PIN baru Anda';
+        clearPinError();
+        
+    } else if (pinMode === 'confirm') {
+        // Mode konfirmasi: cek apakah PIN cocok dengan PIN sementara
+        if (currentPinInput === tempPin) {
+            // PIN cocok, simpan
+            localStorage.setItem(STORAGE_KEY_PIN, currentPinInput);
+            hidePinModal();
+            initializeApp();
+            showNotification('PIN berhasil dibuat!', 'success');
+        } else {
+            // PIN tidak cocok
+            showPinError('PIN tidak cocok. Coba lagi.');
+            currentPinInput = '';
+            tempPin = '';
+            pinMode = 'setup';
+            setTimeout(() => {
+                const title = document.getElementById('pinTitle');
+                const subtitle = document.getElementById('pinSubtitle');
+                title.textContent = 'Buat PIN Baru';
+                subtitle.textContent = 'Buat PIN 4 digit untuk keamanan aplikasi';
+                updatePinDots();
+            }, 1000);
+        }
+        
+    } else if (pinMode === 'verify') {
+        // Mode verify: cek PIN dengan yang tersimpan
+        if (currentPinInput === savedPin) {
+            // PIN benar
+            hidePinModal();
+            initializeApp();
+        } else {
+            // PIN salah
+            showPinError('PIN salah. Coba lagi.');
+            currentPinInput = '';
+            updatePinDots();
+        }
+        
+    } else if (pinMode === 'change') {
+        // Mode change: verifikasi PIN lama
+        if (currentPinInput === savedPin) {
+            // PIN lama benar, minta PIN baru
+            tempPin = '';
+            currentPinInput = '';
+            pinMode = 'setup';
+            const title = document.getElementById('pinTitle');
+            const subtitle = document.getElementById('pinSubtitle');
+            title.textContent = 'Buat PIN Baru';
+            subtitle.textContent = 'Buat PIN 4 digit baru';
+            updatePinDots();
+            clearPinError();
+        } else {
+            // PIN lama salah
+            showPinError('PIN lama salah. Coba lagi.');
+            currentPinInput = '';
+            updatePinDots();
+        }
+    }
+}
+
+function showPinError(message) {
+    const errorEl = document.getElementById('pinError');
+    errorEl.textContent = message;
+}
+
+function clearPinError() {
+    const errorEl = document.getElementById('pinError');
+    errorEl.textContent = '';
+}
+
+function hidePinModal() {
+    const modal = document.getElementById('pinModal');
+    modal.classList.remove('active');
+}
+
+function handleResetPin() {
+    const confirmed = confirm('⚠️ Reset PIN akan menghapus semua data aplikasi. Lanjutkan?');
+    
+    if (confirmed) {
+        // Hapus semua data
+        localStorage.removeItem(STORAGE_KEY_PIN);
+        localStorage.removeItem(STORAGE_KEY);
+        localStorage.removeItem(STORAGE_KEY_SALDO);
+        
+        // Reload halaman
+        window.location.reload();
+    }
+}
+
+function showChangePinModal() {
+    pinMode = 'change';
+    currentPinInput = '';
+    showPinModal();
+}
+
+function showNotification(message, type = 'info') {
+    // Implementasi notifikasi sederhana
+    const notification = document.createElement('div');
+    notification.className = 'notification notification-' + type;
+    notification.textContent = message;
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 16px 24px;
+        background: ${type === 'success' ? 'var(--success-color)' : 'var(--primary-color)'};
+        color: white;
+        border-radius: 12px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        z-index: 10001;
+        animation: slideInRight 0.3s ease;
+    `;
+    
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        notification.style.animation = 'slideOutRight 0.3s ease';
+        setTimeout(() => {
+            document.body.removeChild(notification);
+        }, 300);
+    }, 3000);
 }
 
 function formatWaktuWIB(date) {
