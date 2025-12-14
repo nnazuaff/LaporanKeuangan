@@ -33,7 +33,31 @@ function initApp() {
     checkPinAndInitialize();
 }
 
-function checkPinAndInitialize() {
+async function checkPinAndInitialize() {
+    // Cek apakah di Android Native
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (isCapacitor) {
+        // Coba biometric dulu
+        try {
+            const NativeBiometric = window.Capacitor.Plugins.NativeBiometric;
+            
+            if (NativeBiometric) {
+                // Cek apakah biometric tersedia
+                const result = await NativeBiometric.isAvailable();
+                
+                if (result.isAvailable) {
+                    // Biometric tersedia, gunakan biometric
+                    await authenticateWithBiometric();
+                    return; // Sukses, langsung keluar
+                }
+            }
+        } catch (error) {
+            console.log('Biometric not available:', error);
+        }
+    }
+    
+    // Fallback ke PIN manual (untuk browser atau device tanpa biometric)
     const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
     
     if (!savedPin) {
@@ -44,6 +68,37 @@ function checkPinAndInitialize() {
         // Sudah ada PIN, verifikasi
         pinMode = 'verify';
         showPinModal();
+    }
+}
+
+async function authenticateWithBiometric() {
+    try {
+        const NativeBiometric = window.Capacitor.Plugins.NativeBiometric;
+        
+        // Tampilkan prompt biometric
+        await NativeBiometric.verifyIdentity({
+            title: "Laporan Keuangan",
+            subtitle: "Verifikasi identitas Anda",
+            description: "Gunakan fingerprint atau face unlock untuk membuka aplikasi"
+        });
+        
+        // Sukses! Langsung initialize app
+        console.log('✅ Biometric verified');
+        initializeApp();
+        
+    } catch (error) {
+        console.error('Biometric verification failed:', error);
+        
+        // Gagal biometric, fallback ke PIN
+        const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
+        
+        if (!savedPin) {
+            pinMode = 'setup';
+            showPinModal();
+        } else {
+            pinMode = 'verify';
+            showPinModal();
+        }
     }
 }
 
@@ -1711,22 +1766,22 @@ function exportToPDF() {
                 console.log('PDF saved:', result.uri);
                 showToast('📄 PDF tersimpan!', 'success');
                 
-                // Auto-open PDF menggunakan Share API (akan membuka dengan PDF viewer default)
-                if (Share) {
-                    try {
+                // Auto-open PDF dengan dialog "Buka dengan"
+                try {
+                    const Share = window.Capacitor.Plugins.Share;
+                    
+                    if (Share) {
+                        // Gunakan Share dengan parameter files untuk trigger "Open with"
                         await Share.share({
-                            title: 'Laporan Keuangan',
-                            text: 'Buka laporan PDF',
-                            url: result.uri,
-                            dialogTitle: 'Buka dengan...',
+                            files: [result.uri],
+                            dialogTitle: 'Buka PDF dengan...'
                         });
-                    } catch (shareError) {
-                        console.log('Share cancelled or error:', shareError);
-                        // User cancel atau error - tidak masalah
-                        showToast('📄 PDF tersimpan di: Documents/' + filename, 'info');
+                    } else {
+                        showToast('📁 PDF di: Documents/' + filename, 'info');
                     }
-                } else {
-                    showToast('📄 PDF di: Documents/' + filename, 'info');
+                } catch (error) {
+                    console.log('Error opening PDF:', error);
+                    showToast('📁 PDF tersimpan di: Documents/' + filename, 'info');
                 }
             }).catch((error) => {
                 console.error('Error saving PDF:', error);
