@@ -1690,22 +1690,56 @@ function exportToPDF() {
     const tahun = today.getFullYear();
     const filename = `Laporan_${tanggal}-${bulan}-${tahun}.pdf`;
     
-    // Detect jika di mobile/Android
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const isWebView = /wv|WebView/i.test(navigator.userAgent);
+    // Detect jika di Capacitor (Native Android)
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
     
-    // Generate PDF: gunakan jsPDF.save untuk menjaga nama file konsisten
-    // Catatan: Android WebView (Web2APK) sering mengabaikan atribut <a download>
-    // sehingga nama file menjadi acak. Pemanggilan doc.save(filename) biasanya
-    // dihormati dan menghasilkan nama file sesuai harapan.
-    const pdfBlob = new Blob([doc.output('blob')], { type: 'application/pdf' });
-    
-    if (isMobile || isWebView) {
-        // Android/WebView: langsung simpan via jsPDF agar nama file tidak acak
-        doc.save(filename);
-        showToast('PDF tersimpan di Download', 'success');
+    if (isCapacitor && window.Capacitor.Plugins) {
+        // ===== ANDROID NATIVE (CAPACITOR) =====
+        const { Filesystem, Share } = window.Capacitor.Plugins;
+        
+        if (Filesystem) {
+            // Save menggunakan Capacitor Filesystem dan auto-open
+            const pdfBase64 = doc.output('datauristring').split(',')[1];
+            
+            Filesystem.writeFile({
+                path: filename,
+                data: pdfBase64,
+                directory: 'DOCUMENTS',
+                recursive: true
+            }).then(async (result) => {
+                console.log('PDF saved:', result.uri);
+                showToast('✅ PDF tersimpan!', 'success');
+                
+                // Auto-open PDF menggunakan Share API (akan membuka dengan PDF viewer default)
+                if (Share) {
+                    try {
+                        await Share.share({
+                            title: 'Laporan Keuangan',
+                            text: 'Buka laporan PDF',
+                            url: result.uri,
+                            dialogTitle: 'Buka dengan...',
+                        });
+                    } catch (shareError) {
+                        console.log('Share cancelled or error:', shareError);
+                        // User cancel atau error - tidak masalah
+                        showToast('📄 PDF tersimpan di: Documents/' + filename, 'info');
+                    }
+                } else {
+                    showToast('📄 PDF di: Documents/' + filename, 'info');
+                }
+            }).catch((error) => {
+                console.error('Error saving PDF:', error);
+                // Fallback ke browser download
+                doc.save(filename);
+                showToast('PDF berhasil didownload!', 'success');
+            });
+        } else {
+            // Filesystem tidak tersedia, fallback
+            doc.save(filename);
+            showToast('PDF berhasil didownload!', 'success');
+        }
     } else {
-        // Desktop/Browser: jsPDF.save juga menetapkan nama file dengan benar
+        // ===== BROWSER / PWA =====
         doc.save(filename);
         showToast('PDF berhasil didownload!', 'success');
     }
