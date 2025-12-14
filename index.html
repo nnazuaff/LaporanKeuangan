@@ -16,7 +16,7 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=2.0">
+    <link rel="stylesheet" href="style.css?v=2.5">
 </head>
 <body>
     <!-- Header -->
@@ -44,6 +44,7 @@
         <div class="header-buttons">
             <button class="btn-settings" onclick="toggleSaldoModal()">⚙️ Atur Saldo</button>
             <button class="btn-settings" onclick="showChangePinModal()">🔑 Ubah PIN</button>
+            <button class="btn-settings btn-export" onclick="exportToPDF()">📄 Export PDF</button>
         </div>
     </header>
 
@@ -166,6 +167,7 @@
     <!-- Modal PIN -->
     <div id="pinModal" class="pin-modal">
         <div class="pin-modal-content">
+            <button class="pin-close-btn" id="pinCloseBtn" style="display: none;" onclick="cancelPinChange()">✕</button>
             <div class="pin-header">
                 <div class="pin-icon">🔒</div>
                 <h2 id="pinTitle">Masukkan PIN</h2>
@@ -277,7 +279,10 @@
         </p>
     </footer>
 
+    <!-- jsPDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
     <!-- JavaScript -->
-    <script src="app.js?v=2.0"></script>
+    <script src="app.js?v=2.5"></script>
 </body>
 </html>

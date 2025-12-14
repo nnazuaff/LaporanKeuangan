@@ -1,7 +1,7 @@
 // Service Worker untuk PWA - Laporan Keuangan
 // Memungkinkan aplikasi berjalan secara offline
 
-const CACHE_NAME = 'laporan-keuangan-v2.0';
+const CACHE_NAME = 'laporan-keuangan-v2.5';
 const urlsToCache = [
   './',
   './index.html',

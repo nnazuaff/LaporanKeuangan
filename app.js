@@ -529,24 +529,31 @@ function showPinModal() {
     const title = document.getElementById('pinTitle');
     const subtitle = document.getElementById('pinSubtitle');
     const resetBtn = document.getElementById('btnResetPin');
+    const closeBtn = document.getElementById('pinCloseBtn');
     
     // Setup tampilan berdasarkan mode
     if (pinMode === 'setup') {
         title.textContent = 'Buat PIN Baru';
         subtitle.textContent = 'Buat PIN 4 digit untuk keamanan aplikasi';
         resetBtn.style.display = 'none';
+        // Tampilkan tombol close jika sedang mengubah PIN (bukan setup awal)
+        const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
+        closeBtn.style.display = savedPin ? 'block' : 'none';
     } else if (pinMode === 'verify') {
         title.textContent = 'Masukkan PIN';
         subtitle.textContent = 'Gunakan PIN untuk membuka aplikasi';
         resetBtn.style.display = 'block';
+        closeBtn.style.display = 'none';
     } else if (pinMode === 'change') {
         title.textContent = 'PIN Lama';
         subtitle.textContent = 'Masukkan PIN lama Anda';
         resetBtn.style.display = 'none';
+        closeBtn.style.display = 'block';
     } else if (pinMode === 'confirm') {
         title.textContent = 'Konfirmasi PIN Baru';
         subtitle.textContent = 'Masukkan ulang PIN baru Anda';
         resetBtn.style.display = 'none';
+        closeBtn.style.display = 'block';
     }
     
     modal.classList.add('active');
@@ -639,7 +646,7 @@ function validatePin() {
             localStorage.setItem(STORAGE_KEY_PIN, currentPinInput);
             hidePinModal();
             initializeApp();
-            showNotification('PIN berhasil dibuat!', 'success');
+            showToast('PIN berhasil dibuat!', 'success');
         } else {
             // PIN tidak cocok
             showPinError('PIN tidak cocok. Coba lagi.');
@@ -723,6 +730,19 @@ function showChangePinModal() {
     pinMode = 'change';
     currentPinInput = '';
     showPinModal();
+}
+
+function cancelPinChange() {
+    // Reset state PIN
+    currentPinInput = '';
+    tempPin = '';
+    pinMode = 'verify';
+    
+    // Tutup modal PIN
+    hidePinModal();
+    
+    // Tampilkan notifikasi
+    showToast('Perubahan PIN dibatalkan', 'warning', 'Dibatalkan');
 }
 
 function showNotification(message, type = 'info') {
@@ -1306,4 +1326,357 @@ function formatTanggalForPicker(dateStr) {
     const tahun = tanggal.getFullYear();
     
     return `${namaHari}, ${tgl} ${namaBulan} ${tahun}`;
+}
+
+// ==========================================
+// EXPORT TO PDF
+// ==========================================
+
+function exportToPDF() {
+    console.log('Export PDF dipanggil');
+    
+    // Cek apakah jsPDF sudah loaded
+    if (typeof window.jspdf === 'undefined') {
+        console.error('jsPDF tidak tersedia');
+        showToast('Library PDF belum siap. Coba lagi dalam beberapa saat.', 'warning');
+        return;
+    }
+    
+    console.log('jsPDF tersedia, memulai export...');
+    
+    try {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+    
+    // Filter transaksi sesuai filter yang aktif
+    const filteredTransaksi = getFilteredTransactions();
+    
+    // Hitung total
+    let totalPemasukan = 0;
+    let totalPengeluaran = 0;
+    
+    filteredTransaksi.forEach(t => {
+        if (t.jenis === 'pemasukan') {
+            totalPemasukan += t.nominal;
+        } else {
+            totalPengeluaran += t.nominal;
+        }
+    });
+    
+    // Hitung saldo akhir
+    const saldoManual = sumberSaldoList.reduce((sum, s) => sum + s.jumlah, 0);
+    const saldoAkhir = saldoManual + totalPemasukan - totalPengeluaran;
+    
+    // ===== HEADER DENGAN DESIGN MENARIK =====
+    // Background header
+    doc.setFillColor(26, 188, 156);
+    doc.rect(0, 0, 210, 45, 'F');
+    
+    // Icon wallet (simple rectangle representation)
+    doc.setFillColor(255, 255, 255);
+    doc.roundedRect(15, 12, 20, 14, 2, 2, 'F');
+    doc.setDrawColor(22, 160, 133);
+    doc.setLineWidth(0.5);
+    doc.line(18, 19, 32, 19);
+    
+    // Title
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(24);
+    doc.setTextColor(255, 255, 255);
+    doc.text('LAPORAN KEUANGAN', 105, 20, { align: 'center' });
+    
+    // Subtitle
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(230, 245, 242);
+    doc.text('Ringkasan Keuangan Pribadi', 105, 27, { align: 'center' });
+    
+    // Tanggal cetak
+    const tanggalCetak = new Date().toLocaleDateString('id-ID', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+    doc.setFontSize(9);
+    doc.text(`Dicetak: ${tanggalCetak}`, 105, 34, { align: 'center' });
+    
+    // Filter info box
+    let filterInfo = '';
+    if (filterPeriode === 'semua') {
+        filterInfo += 'Semua Periode';
+    } else if (filterPeriode === 'hari-ini') {
+        filterInfo += 'Hari Ini';
+    } else if (filterPeriode === 'minggu-ini') {
+        filterInfo += 'Minggu Ini';
+    } else if (filterPeriode === 'bulan-ini') {
+        filterInfo += 'Bulan Ini';
+    } else if (filterPeriode === 'custom' && dateRangeStart && dateRangeEnd) {
+        filterInfo += `${dateRangeStart} s/d ${dateRangeEnd}`;
+    }
+    
+    if (filterJenis !== 'semua') {
+        filterInfo += ` • ${filterJenis.charAt(0).toUpperCase() + filterJenis.slice(1)}`;
+    }
+    
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(26, 188, 156);
+    doc.setLineWidth(0.3);
+    doc.roundedRect(40, 37, 130, 6, 1, 1, 'FD');
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.setTextColor(26, 188, 156);
+    doc.text(filterInfo, 105, 41, { align: 'center' });
+    
+    let yPos = 52;
+    
+    // ===== RINGKASAN DENGAN CARD DESIGN =====
+    // Card Pemasukan (Hijau)
+    doc.setFillColor(46, 204, 113);
+    doc.roundedRect(15, yPos, 60, 26, 2, 2, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('PEMASUKAN', 45, yPos + 7, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(formatRupiah(totalPemasukan), 45, yPos + 16, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text('+', 45, yPos + 23, { align: 'center' });
+    
+    // Card Pengeluaran (Merah)
+    doc.setFillColor(231, 76, 60);
+    doc.roundedRect(77.5, yPos, 60, 26, 2, 2, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('PENGELUARAN', 107.5, yPos + 7, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(formatRupiah(totalPengeluaran), 107.5, yPos + 16, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text('-', 107.5, yPos + 23, { align: 'center' });
+    
+    // Card Saldo Akhir (Biru/Tosca)
+    doc.setFillColor(52, 152, 219);
+    doc.roundedRect(140, yPos, 55, 26, 2, 2, 'F');
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(255, 255, 255);
+    doc.text('SALDO AKHIR', 167.5, yPos + 7, { align: 'center' });
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(12);
+    doc.text(formatRupiah(saldoAkhir), 167.5, yPos + 16, { align: 'center' });
+    doc.setFontSize(14);
+    doc.text('=', 167.5, yPos + 23, { align: 'center' });
+    
+    yPos += 34;
+    
+    // ===== DAFTAR TRANSAKSI =====
+    if (filteredTransaksi.length > 0) {
+        // Section title dengan background
+        doc.setFillColor(236, 240, 241);
+        doc.roundedRect(15, yPos - 2, 180, 10, 1, 1, 'F');
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(44, 62, 80);
+        doc.text('DAFTAR TRANSAKSI', 20, yPos + 4);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(127, 140, 141);
+        doc.text(`Total: ${filteredTransaksi.length} Transaksi`, 185, yPos + 4, { align: 'right' });
+        
+        yPos += 12;
+        
+        // Header tabel dengan gradient effect
+        doc.setFillColor(26, 188, 156);
+        doc.roundedRect(15, yPos - 5, 180, 9, 1, 1, 'F');
+        
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(255, 255, 255);
+        doc.text('Tanggal', 18, yPos);
+        doc.text('Deskripsi', 48, yPos);
+        doc.text('Kategori', 115, yPos);
+        doc.text('Nominal', 187, yPos, { align: 'right' });
+        
+        yPos += 8;
+        
+        // Data transaksi dengan border dan styling
+        doc.setFont('helvetica', 'normal');
+        
+        filteredTransaksi.forEach((transaksi, index) => {
+            // Check page break
+            if (yPos > 265) {
+                doc.addPage();
+                yPos = 25;
+            }
+            
+            // Row background dengan rounded corner effect
+            if (index % 2 === 0) {
+                doc.setFillColor(250, 252, 253);
+                doc.roundedRect(15, yPos - 5, 180, 8, 0.5, 0.5, 'F');
+            } else {
+                doc.setFillColor(255, 255, 255);
+            }
+            
+            // Border bawah tipis
+            doc.setDrawColor(236, 240, 241);
+            doc.setLineWidth(0.1);
+            doc.line(15, yPos + 3, 195, yPos + 3);
+            
+            doc.setFontSize(8);
+            
+            // Tanggal dengan icon
+            doc.setTextColor(127, 140, 141);
+            const tgl = formatTanggalShort(transaksi.tanggal);
+            doc.text(tgl, 18, yPos);
+            
+            // Deskripsi
+            doc.setTextColor(44, 62, 80);
+            doc.setFont('helvetica', 'normal');
+            const desc = transaksi.deskripsi.length > 30 
+                ? transaksi.deskripsi.substring(0, 30) + '...' 
+                : transaksi.deskripsi;
+            doc.text(desc, 48, yPos);
+            
+            // Kategori dengan badge style
+            doc.setFontSize(7);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(52, 73, 94);
+            doc.text(transaksi.kategori, 115, yPos);
+            
+            // Nominal dengan warna dan background
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(9);
+            if (transaksi.jenis === 'pemasukan') {
+                doc.setTextColor(46, 204, 113);
+                doc.text('+ ' + formatRupiah(transaksi.nominal), 187, yPos, { align: 'right' });
+            } else {
+                doc.setTextColor(231, 76, 60);
+                doc.text('- ' + formatRupiah(transaksi.nominal), 187, yPos, { align: 'right' });
+            }
+            
+            yPos += 8;
+        });
+    } else {
+        // Empty state
+        doc.setFillColor(248, 249, 250);
+        doc.roundedRect(50, yPos, 110, 25, 2, 2, 'F');
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(189, 195, 199);
+        doc.text('TIDAK ADA DATA', 105, yPos + 10, { align: 'center' });
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'italic');
+        doc.setTextColor(127, 140, 141);
+        doc.text('Belum ada transaksi untuk ditampilkan', 105, yPos + 18, { align: 'center' });
+    }
+    
+    // ===== FOOTER & WATERMARK =====
+    const pageCount = doc.internal.getNumberOfPages();
+    for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        
+        // Watermark diagonal di tengah halaman (lebih subtle)
+        doc.setTextColor(250, 250, 250);
+        doc.setFontSize(40);
+        doc.setFont('helvetica', 'bold');
+        doc.text('@nnazuaf', 105, 155, { 
+            align: 'center', 
+            angle: 45 
+        });
+        
+        // Footer line
+        doc.setDrawColor(220, 220, 220);
+        doc.setLineWidth(0.3);
+        doc.line(15, 278, 195, 278);
+        
+        // Footer dengan layout 3 kolom
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(150, 150, 150);
+        
+        // Kiri: Halaman
+        doc.text(`Hal ${i}/${pageCount}`, 15, 285);
+        
+        // Tengah: Creator
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(26, 188, 156);
+        doc.text('Created by @nnazuaf', 105, 285, { align: 'center' });
+        
+        // Kanan: App info
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(150, 150, 150);
+        doc.text('Laporan Keuangan App', 195, 285, { align: 'right' });
+    }
+    
+    // Generate filename
+    const filename = `Laporan_Keuangan_${new Date().toISOString().slice(0, 10)}.pdf`;
+    
+    // Save PDF
+    doc.save(filename);
+    
+    showToast('Laporan berhasil diexport ke PDF!', 'success');
+    
+    } catch (error) {
+        console.error('Error exporting PDF:', error);
+        showToast('Gagal membuat PDF: ' + error.message, 'error');
+    }
+}
+
+function formatTanggalShort(dateStr) {
+    const date = new Date(dateStr);
+    const day = date.getDate();
+    const month = date.getMonth() + 1;
+    const year = date.getFullYear();
+    return `${day}/${month}/${year}`;
+}
+
+function getFilteredTransactions() {
+    // Duplikasi logik filter dari renderTransactions
+    let filtered = [...transaksiList];
+    
+    // Filter berdasarkan jenis
+    if (filterJenis !== 'semua') {
+        filtered = filtered.filter(t => t.jenis === filterJenis);
+    }
+    
+    // Filter berdasarkan periode
+    if (filterPeriode !== 'semua') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        filtered = filtered.filter(transaksi => {
+            const transaksiDate = new Date(transaksi.tanggal);
+            transaksiDate.setHours(0, 0, 0, 0);
+            
+            if (filterPeriode === 'hari-ini') {
+                return transaksiDate.getTime() === today.getTime();
+            } else if (filterPeriode === 'minggu-ini') {
+                const startOfWeek = new Date(today);
+                startOfWeek.setDate(today.getDate() - today.getDay());
+                return transaksiDate >= startOfWeek;
+            } else if (filterPeriode === 'bulan-ini') {
+                return transaksiDate.getMonth() === today.getMonth() &&
+                       transaksiDate.getFullYear() === today.getFullYear();
+            } else if (filterPeriode === 'custom') {
+                if (dateRangeStart && dateRangeEnd) {
+                    const start = new Date(dateRangeStart);
+                    const end = new Date(dateRangeEnd);
+                    start.setHours(0, 0, 0, 0);
+                    end.setHours(23, 59, 59, 999);
+                    return transaksiDate >= start && transaksiDate <= end;
+                }
+            }
+            return true;
+        });
+    }
+    
+    // Sort by date (newest first)
+    filtered.sort((a, b) => new Date(b.tanggal) - new Date(a.tanggal));
+    
+    return filtered;
 }
