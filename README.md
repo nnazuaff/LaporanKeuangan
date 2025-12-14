@@ -24,26 +24,6 @@ Aplikasi laporan keuangan pribadi berbasis web yang dikonversi menjadi aplikasi 
 10. PIN lock untuk keamanan
 11. Data persisten (tidak hilang saat aplikasi ditutup)
 
-## 📁 Struktur Proyek
-
-```
-LaporanKeuangan/
-├── www/                    # Folder build untuk Capacitor
-│   ├── index.html         # Halaman utama aplikasi
-│   ├── style.css          # Styling lengkap (mobile-first)
-│   ├── app.js             # Logic aplikasi dan manajemen data
-│   ├── manifest.json      # PWA manifest
-│   └── service-worker.js  # Service worker untuk offline
-├── android/               # Proyek Android Studio (auto-generated)
-├── resources/             # Assets untuk icon & splash screen
-│   └── icon.png          # Icon master (1024x1024)
-├── index.html            # Source file
-├── style.css             # Source file
-├── app.js                # Source file
-├── capacitor.config.json # Konfigurasi Capacitor
-├── package.json          # Dependencies Node.js
-└── README.md             # File ini
-```
 
 ## 🚀 Cara Setup & Build APK
 
