@@ -66,6 +66,66 @@ function initializeApp() {
     
     // Register service worker untuk PWA
     registerServiceWorker();
+    
+    // Setup notifications
+    setupNotifications();
+}
+
+// ==========================================
+// NOTIFICATIONS
+// ==========================================
+
+async function setupNotifications() {
+    // Cek apakah di Capacitor (Android Native)
+    if (window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()) {
+        try {
+            const { LocalNotifications } = window.Capacitor.Plugins;
+            
+            if (LocalNotifications) {
+                // Request permission
+                const permission = await LocalNotifications.requestPermissions();
+                
+                if (permission.display === 'granted') {
+                    console.log('✅ Notification permission granted');
+                } else {
+                    console.log('⚠️ Notification permission denied');
+                }
+            }
+        } catch (error) {
+            console.log('Notifications not available:', error);
+        }
+    }
+}
+
+async function sendNotification(title, body, icon) {
+    // Hanya kirim notifikasi di Android Native
+    if (!window.Capacitor || !window.Capacitor.isNativePlatform || !window.Capacitor.isNativePlatform()) {
+        return;
+    }
+    
+    try {
+        const { LocalNotifications } = window.Capacitor.Plugins;
+        
+        if (LocalNotifications) {
+            await LocalNotifications.schedule({
+                notifications: [
+                    {
+                        title: title,
+                        body: body,
+                        id: Date.now(),
+                        schedule: { at: new Date(Date.now() + 1000) }, // 1 detik dari sekarang
+                        sound: null,
+                        attachments: null,
+                        actionTypeId: "",
+                        extra: null
+                    }
+                ]
+            });
+            console.log('📢 Notification sent:', title);
+        }
+    } catch (error) {
+        console.log('Error sending notification:', error);
+    }
 }
 
 // ==========================================
@@ -260,6 +320,13 @@ function handleFormSubmit(e) {
     // Feedback ke user
     const jenisText = jenis === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran';
     showToast(`${jenisText} ${formatRupiah(nominal)} berhasil ditambahkan`, 'success');
+    
+    // Kirim notifikasi
+    const notifIcon = jenis === 'pemasukan' ? '💰' : '💸';
+    sendNotification(
+        `${notifIcon} Transaksi Disimpan`,
+        `${jenisText} ${formatRupiah(nominal)} - ${deskripsi}`
+    );
 }
 
 // ==========================================
@@ -500,6 +567,12 @@ function deleteTransaksi(id) {
             
             // Feedback
             showToast(`${jenisText} berhasil dihapus`, 'success');
+            
+            // Kirim notifikasi
+            sendNotification(
+                '🗑️ Transaksi Dihapus',
+                `${jenisText} ${formatRupiah(transaksi.nominal)} telah dihapus`
+            );
         }
     );
 }
@@ -1709,6 +1782,12 @@ function exportToPDF() {
             }).then(async (result) => {
                 console.log('PDF saved:', result.uri);
                 showToast('✅ PDF tersimpan!', 'success');
+                
+                // Kirim notifikasi
+                sendNotification(
+                    '📄 PDF Berhasil Dibuat',
+                    `Laporan keuangan telah disimpan: ${filename}`
+                );
                 
                 // Auto-open PDF menggunakan Share API (akan membuka dengan PDF viewer default)
                 if (Share) {

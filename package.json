@@ -1,5 +1,5 @@
 {
-  "name": "laporankeuangan-(versi-apk)",
+  "name": "laporan-keuangan-app",
   "version": "1.0.0",
   "description": "Aplikasi laporan keuangan pribadi berbasis PWA (Progressive Web App) yang dapat berjalan sepenuhnya offline di perangkat Android Anda.",
   "main": "app.js",
@@ -26,6 +26,7 @@
     "@capacitor/cli": "^8.0.0",
     "@capacitor/core": "^8.0.0",
     "@capacitor/filesystem": "^8.0.0",
+    "@capacitor/local-notifications": "^8.0.0",
     "@capacitor/share": "^8.0.0"
   },
   "devDependencies": {
