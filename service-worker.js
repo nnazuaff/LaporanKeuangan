@@ -1,7 +1,7 @@
 // Service Worker untuk PWA - Laporan Keuangan
 // Memungkinkan aplikasi berjalan secara offline
 
-const CACHE_NAME = 'laporan-keuangan-v1';
+const CACHE_NAME = 'laporan-keuangan-v2.0';
 const urlsToCache = [
   './',
   './index.html',
@@ -53,47 +53,42 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Intercept fetch requests dan serve dari cache
+// Intercept fetch requests - Network First Strategy untuk HTML/CSS/JS
 self.addEventListener('fetch', function(event) {
-  event.respondWith(
-    caches.match(event.request)
-      .then(function(response) {
-        // Cache hit - return response dari cache
-        if (response) {
-          return response;
-        }
-        
-        // Clone request karena request hanya bisa digunakan sekali
-        const fetchRequest = event.request.clone();
-        
-        return fetch(fetchRequest).then(function(response) {
-          // Cek apakah response valid
-          if (!response || response.status !== 200 || response.type !== 'basic') {
-            return response;
-          }
-          
-          // Clone response karena response hanya bisa digunakan sekali
+  const url = new URL(event.request.url);
+  
+  // Untuk file HTML, CSS, JS - gunakan Network First
+  if (url.pathname.endsWith('.html') || 
+      url.pathname.endsWith('.css') || 
+      url.pathname.endsWith('.js') ||
+      url.pathname === '/' || 
+      url.pathname === './') {
+    
+    event.respondWith(
+      fetch(event.request)
+        .then(function(response) {
+          // Update cache dengan versi terbaru
           const responseToCache = response.clone();
-          
           caches.open(CACHE_NAME)
             .then(function(cache) {
               cache.put(event.request, responseToCache);
             });
-          
           return response;
-        }).catch(function() {
-          // Jika offline dan tidak ada di cache, bisa return fallback page
-          // Untuk sekarang, return error biasa
-          return new Response('Offline - konten tidak tersedia', {
-            status: 503,
-            statusText: 'Service Unavailable',
-            headers: new Headers({
-              'Content-Type': 'text/plain'
-            })
-          });
-        });
-      })
-  );
+        })
+        .catch(function() {
+          // Jika offline, gunakan cache
+          return caches.match(event.request);
+        })
+    );
+  } else {
+    // Untuk resource lain (gambar, dll) - gunakan Cache First
+    event.respondWith(
+      caches.match(event.request)
+        .then(function(response) {
+          return response || fetch(event.request);
+        })
+    );
+  }
 });
 
 // Background sync untuk future enhancement (optional)
