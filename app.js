@@ -6,6 +6,9 @@
 const STORAGE_KEY = 'laporan_keuangan_transaksi';
 const STORAGE_KEY_SALDO = 'laporan_keuangan_saldo_manual';
 const STORAGE_KEY_PIN = 'laporan_keuangan_pin';
+const STORAGE_KEY_SECURITY = 'laporan_keuangan_security_enabled';
+const STORAGE_KEY_REMINDER = 'laporan_keuangan_reminder_enabled';
+const STORAGE_KEY_REMINDER_TIME = 'laporan_keuangan_reminder_time';
 
 // State aplikasi
 let transaksiList = [];
@@ -29,45 +32,59 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function initApp() {
+    // Tampilkan loading screen
+    showAuthScreen();
+    
     // Cek PIN terlebih dahulu
     checkPinAndInitialize();
 }
 
+function showAuthScreen() {
+    const authScreen = document.getElementById('authScreen');
+    const mainContent = document.getElementById('mainContent');
+    
+    if (authScreen && mainContent) {
+        authScreen.classList.remove('hidden');
+        mainContent.classList.add('hidden');
+    }
+}
+
+function hideAuthScreen() {
+    const authScreen = document.getElementById('authScreen');
+    const mainContent = document.getElementById('mainContent');
+    
+    if (authScreen && mainContent) {
+        authScreen.classList.add('hidden');
+        mainContent.classList.remove('hidden');
+    }
+}
+
 async function checkPinAndInitialize() {
+    // Update message
+    const authMessage = document.querySelector('.auth-message');
+    
     // Cek apakah di Android Native
     const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
     
     if (isCapacitor) {
-        // Coba biometric dulu
-        try {
-            const NativeBiometric = window.Capacitor.Plugins.NativeBiometric;
-            
-            if (NativeBiometric) {
-                // Cek apakah biometric tersedia
-                const result = await NativeBiometric.isAvailable();
-                
-                if (result.isAvailable) {
-                    // Biometric tersedia, gunakan biometric
-                    await authenticateWithBiometric();
-                    return; // Sukses, langsung keluar
-                }
-            }
-        } catch (error) {
-            console.log('Biometric not available:', error);
+        // Cek apakah user aktifkan security
+        const securityEnabled = localStorage.getItem(STORAGE_KEY_SECURITY);
+        
+        if (securityEnabled === 'true') {
+            // Security aktif, gunakan biometric authentication
+            if (authMessage) authMessage.textContent = 'Verifikasi...';
+            await authenticateWithBiometric();
+        } else {
+            // Security tidak aktif, langsung masuk
+            console.log('Security disabled by user');
+            if (authMessage) authMessage.textContent = 'Memuat data...';
+            initializeApp();
         }
-    }
-    
-    // Fallback ke PIN manual (untuk browser atau device tanpa biometric)
-    const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
-    
-    if (!savedPin) {
-        // Belum ada PIN, setup PIN baru
-        pinMode = 'setup';
-        showPinModal();
     } else {
-        // Sudah ada PIN, verifikasi
-        pinMode = 'verify';
-        showPinModal();
+        // Browser/PWA - langsung masuk tanpa authentication
+        console.log('Running in browser - skip authentication');
+        if (authMessage) authMessage.textContent = 'Memuat data...';
+        initializeApp();
     }
 }
 
@@ -75,29 +92,72 @@ async function authenticateWithBiometric() {
     try {
         const NativeBiometric = window.Capacitor.Plugins.NativeBiometric;
         
-        // Tampilkan prompt biometric
+        if (!NativeBiometric) {
+            // Plugin tidak tersedia, langsung masuk
+            console.log('Biometric plugin not available');
+            initializeApp();
+            return;
+        }
+        
+        // Cek apakah biometric atau device credentials tersedia
+        const available = await NativeBiometric.isAvailable();
+        
+        if (!available.isAvailable) {
+            // Tidak ada security di device, langsung masuk
+            console.log('No biometric/PIN available on device');
+            initializeApp();
+            return;
+        }
+        
+        // Tampilkan prompt biometric dengan fallback ke PIN device
         await NativeBiometric.verifyIdentity({
             title: "Laporan Keuangan",
             subtitle: "Verifikasi identitas Anda",
-            description: "Gunakan fingerprint atau face unlock untuk membuka aplikasi"
+            description: "Gunakan fingerprint, face unlock, atau PIN HP Anda",
+            useFallback: true,
+            fallbackTitle: "Gunakan PIN HP",
+            maxAttempts: 3
         });
         
         // Sukses! Langsung initialize app
-        console.log('✅ Biometric verified');
+        console.log('✅ Authentication successful');
         initializeApp();
         
     } catch (error) {
-        console.error('Biometric verification failed:', error);
+        console.error('Authentication failed:', error);
         
-        // Gagal biometric, fallback ke PIN
-        const savedPin = localStorage.getItem(STORAGE_KEY_PIN);
+        // Update message on auth screen
+        const authMessage = document.querySelector('.auth-message');
         
-        if (!savedPin) {
-            pinMode = 'setup';
-            showPinModal();
+        // Jika user cancel atau gagal, JANGAN biarkan masuk - retry terus
+        if (error.code === 10 || error.code === 13) {
+            // User canceled - HARUS coba lagi, tidak bisa bypass
+            if (authMessage) authMessage.textContent = 'Authentication dibatalkan. Coba lagi...';
+            console.log('❌ User canceled authentication, retrying...');
+            
+            // Coba lagi setelah 1.5 detik
+            setTimeout(() => {
+                if (authMessage) authMessage.textContent = 'Verifikasi...';
+                authenticateWithBiometric();
+            }, 1500);
+        } else if (error.code === 11) {
+            // Too many attempts
+            if (authMessage) authMessage.textContent = 'Terlalu banyak percobaan. Coba lagi...';
+            console.log('❌ Too many attempts, retrying...');
+            
+            setTimeout(() => {
+                if (authMessage) authMessage.textContent = 'Verifikasi...';
+                authenticateWithBiometric();
+            }, 2000);
         } else {
-            pinMode = 'verify';
-            showPinModal();
+            // Error lain - tetap retry, TIDAK bypass
+            if (authMessage) authMessage.textContent = 'Error authentication. Coba lagi...';
+            console.log('Authentication error, retrying:', error);
+            
+            setTimeout(() => {
+                if (authMessage) authMessage.textContent = 'Verifikasi...';
+                authenticateWithBiometric();
+            }, 1500);
         }
     }
 }
@@ -113,6 +173,15 @@ function initializeApp() {
     // Setup event listeners
     setupEventListeners();
     
+    // Load security preference dan set toggle state
+    loadSecurityPreference();
+    
+    // Setup back button handler untuk exit confirmation
+    setupBackButtonHandler();
+    
+    // Setup notification action listener
+    setupNotificationListener();
+    
     // Render tampilan awal
     renderTransactions();
     renderSumberSaldo();
@@ -121,6 +190,102 @@ function initializeApp() {
     
     // Register service worker untuk PWA
     registerServiceWorker();
+    
+    // Hide auth screen and show main content
+    hideAuthScreen();
+}
+
+// ==========================================
+// BACK BUTTON HANDLER (EXIT CONFIRMATION)
+// ==========================================
+
+function setupBackButtonHandler() {
+    // Cek apakah di Android Native
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (!isCapacitor) {
+        // Browser - tidak perlu handle back button
+        return;
+    }
+    
+    // Import App plugin
+    const { App } = window.Capacitor.Plugins;
+    
+    if (!App) {
+        console.log('App plugin not available');
+        return;
+    }
+    
+    // Listen untuk back button
+    App.addListener('backButton', ({ canGoBack }) => {
+        // Cek apakah ada modal yang terbuka
+        const activeModal = document.querySelector('.modal.active');
+        
+        if (activeModal) {
+            // Ada modal terbuka, tutup modal aja
+            activeModal.classList.remove('active');
+            return;
+        }
+        
+        // Tidak ada modal, tanyakan apakah mau keluar
+        showExitConfirmation();
+    });
+    
+    console.log('✅ Back button handler initialized');
+}
+
+function showExitConfirmation() {
+    // Buat custom confirmation modal
+    const existingConfirm = document.getElementById('exitConfirmModal');
+    if (existingConfirm) {
+        existingConfirm.classList.add('active');
+        return;
+    }
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.id = 'exitConfirmModal';
+    modal.className = 'modal exit-modal';
+    modal.innerHTML = `
+        <div class="modal-content exit-modal-content">
+            <div class="exit-modal-header">
+                <h3>Keluar Aplikasi</h3>
+            </div>
+            <div class="exit-modal-body">
+                <p>Apakah Anda yakin ingin keluar dari aplikasi?</p>
+            </div>
+            <div class="exit-modal-footer">
+                <button type="button" class="btn-exit-cancel" onclick="closeExitConfirmation()">
+                    Batal
+                </button>
+                <button type="button" class="btn-exit-confirm" onclick="exitApp()">
+                    Ya, Keluar
+                </button>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Tampilkan modal dengan animasi
+    setTimeout(() => {
+        modal.classList.add('active');
+    }, 10);
+}
+
+function closeExitConfirmation() {
+    const modal = document.getElementById('exitConfirmModal');
+    if (modal) {
+        modal.classList.remove('active');
+    }
+}
+
+function exitApp() {
+    const { App } = window.Capacitor.Plugins;
+    
+    if (App) {
+        App.exitApp();
+    }
 }
 
 // ==========================================
@@ -165,6 +330,104 @@ function registerServiceWorker() {
 }
 
 // ==========================================
+// CUSTOM SELECT FUNCTIONALITY
+// ==========================================
+
+function setupCustomSelects() {
+    const customSelects = document.querySelectorAll('.custom-select');
+    
+    customSelects.forEach(select => {
+        const trigger = select.querySelector('.custom-select-trigger');
+        const options = select.querySelectorAll('.custom-select-option');
+        const triggerSpan = trigger.querySelector('span');
+        const selectId = select.id;
+        
+        // Get corresponding hidden input
+        let hiddenInput;
+        if (selectId === 'jenisSelect') {
+            hiddenInput = document.getElementById('jenis');
+        } else if (selectId === 'kategoriSelect') {
+            hiddenInput = document.getElementById('kategori');
+        } else if (selectId === 'filterJenisSelect') {
+            hiddenInput = document.getElementById('filterJenis');
+        } else if (selectId === 'filterPeriodeSelect') {
+            hiddenInput = document.getElementById('filterPeriode');
+        } else if (selectId === 'namaSumberSelect') {
+            hiddenInput = document.getElementById('namaSumber');
+        }
+        
+        // Toggle dropdown
+        trigger.addEventListener('click', function(e) {
+            e.stopPropagation();
+            
+            // Close other dropdowns
+            document.querySelectorAll('.custom-select.active').forEach(s => {
+                if (s !== select) s.classList.remove('active');
+            });
+            
+            select.classList.toggle('active');
+        });
+        
+        // Handle option click
+        options.forEach(option => {
+            option.addEventListener('click', function(e) {
+                e.stopPropagation();
+                
+                const value = this.getAttribute('data-value');
+                const text = this.textContent;
+                
+                // Update trigger
+                triggerSpan.textContent = text;
+                triggerSpan.setAttribute('data-value', value);
+                
+                // Update hidden input
+                if (hiddenInput) {
+                    hiddenInput.value = value;
+                }
+                
+                // Update active state
+                options.forEach(opt => opt.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Close dropdown
+                select.classList.remove('active');
+                
+                // Trigger change event for filters
+                if (selectId === 'filterJenisSelect') {
+                    filterJenis = value;
+                    renderTransactions();
+                } else if (selectId === 'filterPeriodeSelect') {
+                    filterPeriode = value;
+                    if (filterPeriode === 'custom') {
+                        showDateRangePicker();
+                    } else {
+                        hideDateRangePicker();
+                        dateRangeStart = null;
+                        dateRangeEnd = null;
+                        renderTransactions();
+                    }
+                } else if (selectId === 'namaSumberSelect') {
+                    // Handle custom source input visibility
+                    const customGroup = document.getElementById('customSumberGroup');
+                    if (value === 'Custom') {
+                        customGroup.style.display = 'block';
+                    } else {
+                        customGroup.style.display = 'none';
+                    }
+                }
+            });
+        });
+    });
+    
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', function() {
+        document.querySelectorAll('.custom-select.active').forEach(select => {
+            select.classList.remove('active');
+        });
+    });
+}
+
+// ==========================================
 // EVENT LISTENERS
 // ==========================================
 
@@ -173,26 +436,37 @@ function setupEventListeners() {
     const form = document.getElementById('formTransaksi');
     form.addEventListener('submit', handleFormSubmit);
     
-    // Filter jenis transaksi
-    const filterJenisEl = document.getElementById('filterJenis');
-    filterJenisEl.addEventListener('change', function(e) {
-        filterJenis = e.target.value;
-        renderTransactions();
-    });
+    // Setup custom selects
+    setupCustomSelects();
     
-    // Filter periode
-    const filterPeriodeEl = document.getElementById('filterPeriode');
-    filterPeriodeEl.addEventListener('change', function(e) {
-        filterPeriode = e.target.value;
-        if (filterPeriode === 'custom') {
-            showDateRangePicker();
-        } else {
-            hideDateRangePicker();
-            dateRangeStart = null;
-            dateRangeEnd = null;
+    // Filter jenis transaksi (will be handled by custom select now)
+    const filterJenisEl = document.getElementById('filterJenis');
+    if (filterJenisEl && filterJenisEl.tagName === 'INPUT') {
+        // Already handled by custom select
+    } else if (filterJenisEl) {
+        filterJenisEl.addEventListener('change', function(e) {
+            filterJenis = e.target.value;
             renderTransactions();
-        }
-    });
+        });
+    }
+    
+    // Filter periode (will be handled by custom select now)
+    const filterPeriodeEl = document.getElementById('filterPeriode');
+    if (filterPeriodeEl && filterPeriodeEl.tagName === 'INPUT') {
+        // Already handled by custom select
+    } else if (filterPeriodeEl) {
+        filterPeriodeEl.addEventListener('change', function(e) {
+            filterPeriode = e.target.value;
+            if (filterPeriode === 'custom') {
+                showDateRangePicker();
+            } else {
+                hideDateRangePicker();
+                dateRangeStart = null;
+                dateRangeEnd = null;
+                renderTransactions();
+            }
+        });
+    }
     
     // Date range picker buttons
     document.getElementById('prevMonth').addEventListener('click', function() {
@@ -916,6 +1190,251 @@ function showFeedback(message) {
 // TOAST NOTIFICATION SYSTEM
 // ==========================================
 
+// ==========================================
+// SECURITY SETTINGS
+// ==========================================
+
+function toggleSecurityModal() {
+    const modal = document.getElementById('securityModal');
+    modal.classList.toggle('active');
+}
+
+function loadSecurityPreference() {
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (!isCapacitor) {
+        // Di browser, hide tombol settings
+        const btnSettings = document.querySelector('.btn-security-settings');
+        if (btnSettings) {
+            btnSettings.style.display = 'none';
+        }
+        return;
+    }
+    
+    // Load preference dari localStorage
+    const securityEnabled = localStorage.getItem(STORAGE_KEY_SECURITY);
+    const checkbox = document.getElementById('biometricToggle');
+    
+    if (checkbox) {
+        checkbox.checked = securityEnabled === 'true';
+    }
+    
+    // Load reminder preference
+    loadReminderPreference();
+}
+
+function toggleBiometricSecurity(checked) {
+    // Simpan preference ke localStorage
+    localStorage.setItem(STORAGE_KEY_SECURITY, checked ? 'true' : 'false');
+    
+    if (checked) {
+        showToast('Keamanan biometric diaktifkan', 'success', 'Berhasil!');
+    } else {
+        showToast('Keamanan biometric dinonaktifkan', 'success', 'Berhasil!');
+    }
+}
+
+// ==========================================
+// REMINDER NOTIFICATION FUNCTIONALITY
+// ==========================================
+
+async function toggleReminder(checked) {
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (!isCapacitor) {
+        showToast('Reminder hanya tersedia di Android', 'warning');
+        const reminderToggle = document.getElementById('reminderToggle');
+        if (reminderToggle) reminderToggle.checked = false;
+        return;
+    }
+    
+    const timeSettings = document.getElementById('reminderTimeSettings');
+    
+    if (checked) {
+        // Request permission
+        const { LocalNotifications } = window.Capacitor.Plugins;
+        
+        try {
+            const permission = await LocalNotifications.requestPermissions();
+            
+            if (permission.display === 'granted') {
+                // Show time settings
+                if (timeSettings) timeSettings.style.display = 'block';
+                
+                // Save preference
+                localStorage.setItem(STORAGE_KEY_REMINDER, 'true');
+                
+                // Schedule notification with saved time
+                const savedTime = localStorage.getItem(STORAGE_KEY_REMINDER_TIME) || '20:00';
+                await scheduleReminderNotification(savedTime);
+                
+                showToast('Reminder diaktifkan', 'success');
+            } else {
+                showToast('Izin notifikasi diperlukan', 'error');
+                const reminderToggle = document.getElementById('reminderToggle');
+                if (reminderToggle) reminderToggle.checked = false;
+            }
+        } catch (error) {
+            console.error('Error requesting notification permission:', error);
+            showToast('Gagal mengaktifkan reminder', 'error');
+            const reminderToggle = document.getElementById('reminderToggle');
+            if (reminderToggle) reminderToggle.checked = false;
+        }
+    } else {
+        // Hide time settings
+        if (timeSettings) timeSettings.style.display = 'none';
+        
+        // Cancel notifications
+        await cancelReminderNotification();
+        
+        // Save preference
+        localStorage.setItem(STORAGE_KEY_REMINDER, 'false');
+        
+        showToast('Reminder dinonaktifkan', 'success');
+    }
+}
+
+async function saveReminderTime() {
+    const timeInput = document.getElementById('reminderTime');
+    const time = timeInput.value;
+    
+    if (!time) {
+        showToast('Pilih waktu terlebih dahulu', 'warning');
+        return;
+    }
+    
+    // Save time to localStorage
+    localStorage.setItem(STORAGE_KEY_REMINDER_TIME, time);
+    
+    // Reschedule notification
+    await scheduleReminderNotification(time);
+    
+    showToast(`Reminder diatur pada ${time}`, 'success');
+}
+
+async function scheduleReminderNotification(time) {
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (!isCapacitor) return;
+    
+    const { LocalNotifications } = window.Capacitor.Plugins;
+    
+    try {
+        // Cancel existing notifications first
+        await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
+        
+        // Parse time (format HH:MM)
+        const [hours, minutes] = time.split(':').map(Number);
+        
+        // Create date for notification
+        const now = new Date();
+        const notificationDate = new Date(
+            now.getFullYear(),
+            now.getMonth(),
+            now.getDate(),
+            hours,
+            minutes,
+            0
+        );
+        
+        // If time has passed today, schedule for tomorrow
+        if (notificationDate <= now) {
+            notificationDate.setDate(notificationDate.getDate() + 1);
+        }
+        
+        // Schedule notification
+        await LocalNotifications.schedule({
+            notifications: [
+                {
+                    id: 1,
+                    title: "📝 Jangan Lupa Catat Keuangan!",
+                    body: "Sudah catat pengeluaran dan pemasukan hari ini?",
+                    schedule: {
+                        at: notificationDate,
+                        repeats: true,
+                        every: 'day'
+                    },
+                    sound: 'default',
+                    actionTypeId: 'OPEN_APP',
+                    extra: {
+                        action: 'open_app'
+                    }
+                }
+            ]
+        });
+        
+        console.log('✅ Reminder scheduled for', time);
+    } catch (error) {
+        console.error('Error scheduling notification:', error);
+        showToast('Gagal menjadwalkan reminder', 'error');
+    }
+}
+
+async function cancelReminderNotification() {
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (!isCapacitor) return;
+    
+    const { LocalNotifications } = window.Capacitor.Plugins;
+    
+    try {
+        await LocalNotifications.cancel({ notifications: [{ id: 1 }] });
+        console.log('✅ Reminder cancelled');
+    } catch (error) {
+        console.error('Error cancelling notification:', error);
+    }
+}
+
+function loadReminderPreference() {
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (!isCapacitor) return;
+    
+    // Load reminder enabled state
+    const reminderEnabled = localStorage.getItem(STORAGE_KEY_REMINDER);
+    const reminderToggle = document.getElementById('reminderToggle');
+    const timeSettings = document.getElementById('reminderTimeSettings');
+    
+    if (reminderToggle) {
+        reminderToggle.checked = reminderEnabled === 'true';
+    }
+    
+    if (timeSettings) {
+        timeSettings.style.display = reminderEnabled === 'true' ? 'block' : 'none';
+    }
+    
+    // Load saved time
+    const savedTime = localStorage.getItem(STORAGE_KEY_REMINDER_TIME);
+    const timeInput = document.getElementById('reminderTime');
+    
+    if (timeInput && savedTime) {
+        timeInput.value = savedTime;
+    }
+}
+
+function setupNotificationListener() {
+    const isCapacitor = window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform();
+    
+    if (!isCapacitor) return;
+    
+    const { LocalNotifications } = window.Capacitor.Plugins;
+    
+    if (!LocalNotifications) return;
+    
+    // Listen for notification action (when user taps notification)
+    LocalNotifications.addListener('localNotificationActionPerformed', (notification) => {
+        console.log('Notification tapped:', notification);
+        
+        // App sudah terbuka karena user tap notifikasi
+        // User bisa langsung lihat halaman utama
+        showToast('Jangan lupa catat transaksi hari ini! 📝', 'info', 'Reminder');
+    });
+    
+    console.log('✅ Notification listener initialized');
+}
+
+// ==========================================
+
 function showToast(message, type = 'success', title = '') {
     // Tentukan title dan icon berdasarkan type
     let toastTitle = title;
@@ -1247,7 +1766,7 @@ function renderSaldoBreakdown() {
     totalItem.style.marginTop = '8px';
     
     totalItem.innerHTML = `
-        <span class="saldo-source-name">Total Saldo Manual</span>
+        <span class="saldo-source-name">Total Saldo</span>
         <span class="saldo-source-amount">${formatRupiah(totalSaldoManual)}</span>
     `;
     
