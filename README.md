@@ -9,7 +9,7 @@ Aplikasi laporan keuangan pribadi berbasis web yang dikonversi menjadi aplikasi 
 - ✅ **Penyimpanan Lokal** - Data tersimpan di perangkat menggunakan localStorage
 - ✅ **Mobile-First Design** - Dirancang khusus untuk layar HP
 - ✅ **PIN Lock** - Keamanan dengan PIN 6 digit
-- ✅ **Export Excel** - Export data ke file Excel
+- ✅ **Export PDF** - Export data ke file PDF
 
 ### Fitur Lengkap:
 1. Input transaksi (pemasukan/pengeluaran)
