@@ -1694,57 +1694,19 @@ function exportToPDF() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const isWebView = /wv|WebView/i.test(navigator.userAgent);
     
-    // Generate PDF sebagai blob dengan mime type yang tepat
+    // Generate PDF: gunakan jsPDF.save untuk menjaga nama file konsisten
+    // Catatan: Android WebView (Web2APK) sering mengabaikan atribut <a download>
+    // sehingga nama file menjadi acak. Pemanggilan doc.save(filename) biasanya
+    // dihormati dan menghasilkan nama file sesuai harapan.
     const pdfBlob = new Blob([doc.output('blob')], { type: 'application/pdf' });
     
     if (isMobile || isWebView) {
-        // Untuk Android WebView/web2apk - gunakan data URI
-        const pdfDataUri = doc.output('dataurlstring');
-        
-        // Buat link dengan data URI
-        const link = document.createElement('a');
-        link.href = pdfDataUri;
-        link.download = filename;
-        link.type = 'application/pdf';
-        
-        // Trigger download dan buka
-        document.body.appendChild(link);
-        link.click();
-        
-        // Coba buka di viewer juga
-        setTimeout(() => {
-            try {
-                // Buat blob URL untuk membuka
-                const blobUrl = URL.createObjectURL(pdfBlob);
-                window.open(blobUrl, '_blank', 'location=yes,enableViewportScale=yes,hidden=no');
-                
-                setTimeout(() => {
-                    URL.revokeObjectURL(blobUrl);
-                }, 5000);
-            } catch (e) {
-                console.log('Auto-open tidak tersedia di webview');
-            }
-        }, 500);
-        
-        // Clean up
-        setTimeout(() => {
-            document.body.removeChild(link);
-        }, 1000);
-        
+        // Android/WebView: langsung simpan via jsPDF agar nama file tidak acak
+        doc.save(filename);
         showToast('PDF tersimpan di Download', 'success');
     } else {
-        // Untuk Desktop/Browser biasa - hanya download
-        const downloadLink = document.createElement('a');
-        const pdfUrl = URL.createObjectURL(pdfBlob);
-        downloadLink.href = pdfUrl;
-        downloadLink.download = filename;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        
-        // Clean up
-        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
-        
+        // Desktop/Browser: jsPDF.save juga menetapkan nama file dengan benar
+        doc.save(filename);
         showToast('PDF berhasil didownload!', 'success');
     }
     
