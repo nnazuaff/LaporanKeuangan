@@ -1,12 +1,8 @@
 // Service Worker untuk PWA - Laporan Keuangan
 // Memungkinkan aplikasi berjalan secara offline
 
-const CACHE_NAME = 'laporan-keuangan-v2.5';
+const CACHE_NAME = 'laporan-keuangan-v3.7';
 const urlsToCache = [
-  './',
-  './index.html',
-  './style.css',
-  './app.js',
   './manifest.json',
   './icon-192.png',
   './icon-512.png'
@@ -53,11 +49,11 @@ self.addEventListener('activate', function(event) {
   );
 });
 
-// Intercept fetch requests - Network First Strategy untuk HTML/CSS/JS
+// Intercept fetch requests
 self.addEventListener('fetch', function(event) {
   const url = new URL(event.request.url);
   
-  // Untuk file HTML, CSS, JS - gunakan Network First
+  // Untuk file HTML, CSS, JS - JANGAN CACHE, selalu ambil dari network
   if (url.pathname.endsWith('.html') || 
       url.pathname.endsWith('.css') || 
       url.pathname.endsWith('.js') ||
@@ -65,23 +61,15 @@ self.addEventListener('fetch', function(event) {
       url.pathname === './') {
     
     event.respondWith(
-      fetch(event.request)
-        .then(function(response) {
-          // Update cache dengan versi terbaru
-          const responseToCache = response.clone();
-          caches.open(CACHE_NAME)
-            .then(function(cache) {
-              cache.put(event.request, responseToCache);
-            });
-          return response;
-        })
-        .catch(function() {
-          // Jika offline, gunakan cache
-          return caches.match(event.request);
-        })
+      fetch(event.request, { 
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      })
     );
   } else {
-    // Untuk resource lain (gambar, dll) - gunakan Cache First
+    // Untuk resource lain (gambar, manifest, dll) - gunakan Cache First
     event.respondWith(
       caches.match(event.request)
         .then(function(response) {

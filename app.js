@@ -77,10 +77,35 @@ function registerServiceWorker() {
         navigator.serviceWorker.register('service-worker.js')
             .then(function(registration) {
                 console.log('Service Worker terdaftar:', registration);
+                
+                // Cek update setiap 1 jam
+                setInterval(() => {
+                    registration.update();
+                }, 3600000);
+                
+                // Auto reload saat ada service worker baru
+                registration.addEventListener('updatefound', () => {
+                    const newWorker = registration.installing;
+                    newWorker.addEventListener('statechange', () => {
+                        if (newWorker.state === 'activated' && navigator.serviceWorker.controller) {
+                            console.log('Service Worker updated, reloading...');
+                            window.location.reload();
+                        }
+                    });
+                });
             })
             .catch(function(error) {
                 console.log('Service Worker gagal:', error);
             });
+        
+        // Reload page saat service worker mengambil kontrol
+        let refreshing = false;
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+            if (!refreshing) {
+                refreshing = true;
+                window.location.reload();
+            }
+        });
     }
 }
 
@@ -1473,6 +1498,54 @@ function exportToPDF() {
     
     yPos += 34;
     
+    // ===== SALDO PER SUMBER =====
+    if (sumberSaldoList.length > 0) {
+        // Section title
+        doc.setFillColor(236, 240, 241);
+        doc.roundedRect(15, yPos - 2, 180, 10, 1, 1, 'F');
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(44, 62, 80);
+        doc.text('SALDO PER SUMBER', 20, yPos + 4);
+        doc.setFontSize(8);
+        doc.setFont('helvetica', 'normal');
+        doc.setTextColor(127, 140, 141);
+        doc.text(`${sumberSaldoList.length} Sumber`, 185, yPos + 4, { align: 'right' });
+        
+        yPos += 12;
+        
+        // Tampilkan setiap sumber saldo
+        sumberSaldoList.forEach((sumber, index) => {
+            // Check page break
+            if (yPos > 265) {
+                doc.addPage();
+                yPos = 25;
+            }
+            
+            // Background untuk setiap item
+            if (index % 2 === 0) {
+                doc.setFillColor(250, 252, 253);
+                doc.roundedRect(15, yPos - 3, 180, 10, 1, 1, 'F');
+            }
+            
+            // Nama sumber
+            doc.setFontSize(9);
+            doc.setFont('helvetica', 'bold');
+            doc.setTextColor(44, 62, 80);
+            doc.text(sumber.nama, 20, yPos + 2);
+            
+            // Jumlah saldo
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(52, 152, 219);
+            doc.text(formatRupiah(sumber.jumlah), 185, yPos + 2, { align: 'right' });
+            
+            yPos += 10;
+        });
+        
+        yPos += 10;
+    }
+    
     // ===== DAFTAR TRANSAKSI =====
     if (filteredTransaksi.length > 0) {
         // Section title dengan background
@@ -1574,19 +1647,10 @@ function exportToPDF() {
         doc.text('Belum ada transaksi untuk ditampilkan', 105, yPos + 18, { align: 'center' });
     }
     
-    // ===== FOOTER & WATERMARK =====
+    // ===== FOOTER =====
     const pageCount = doc.internal.getNumberOfPages();
     for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
-        
-        // Watermark diagonal di tengah halaman (lebih subtle)
-        doc.setTextColor(250, 250, 250);
-        doc.setFontSize(40);
-        doc.setFont('helvetica', 'bold');
-        doc.text('@nnazuaf', 105, 155, { 
-            align: 'center', 
-            angle: 45 
-        });
         
         // Footer line
         doc.setDrawColor(220, 220, 220);
@@ -1601,10 +1665,16 @@ function exportToPDF() {
         // Kiri: Halaman
         doc.text(`Hal ${i}/${pageCount}`, 15, 285);
         
-        // Tengah: Creator
-        doc.setFont('helvetica', 'bold');
+        // Tengah: Creator dengan link ke Instagram
+        doc.setFont('times', 'bold');
+        doc.setFontSize(9);
         doc.setTextColor(26, 188, 156);
-        doc.text('Created by @nnazuaf', 105, 285, { align: 'center' });
+        const creatorText = 'Created by @nnzuaf';
+        const textWidth = doc.getTextWidth(creatorText);
+        const textX = 105 - (textWidth / 2);
+        doc.textWithLink(creatorText, textX, 285, { 
+            url: 'https://www.instagram.com/nnzuaf/' 
+        });
         
         // Kanan: App info
         doc.setFont('helvetica', 'normal');
@@ -1613,13 +1683,70 @@ function exportToPDF() {
         doc.text('Laporan Keuangan App', 195, 285, { align: 'right' });
     }
     
-    // Generate filename
-    const filename = `Laporan_Keuangan_${new Date().toISOString().slice(0, 10)}.pdf`;
+    // Generate filename yang mobile-friendly
+    const today = new Date();
+    const tanggal = today.getDate().toString().padStart(2, '0');
+    const bulan = (today.getMonth() + 1).toString().padStart(2, '0');
+    const tahun = today.getFullYear();
+    const filename = `Laporan_${tanggal}-${bulan}-${tahun}.pdf`;
     
-    // Save PDF
-    doc.save(filename);
+    // Detect jika di mobile/Android
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isWebView = /wv|WebView/i.test(navigator.userAgent);
     
-    showToast('Laporan berhasil diexport ke PDF!', 'success');
+    // Generate PDF sebagai blob dengan mime type yang tepat
+    const pdfBlob = new Blob([doc.output('blob')], { type: 'application/pdf' });
+    
+    if (isMobile || isWebView) {
+        // Untuk Android WebView/web2apk - gunakan data URI
+        const pdfDataUri = doc.output('dataurlstring');
+        
+        // Buat link dengan data URI
+        const link = document.createElement('a');
+        link.href = pdfDataUri;
+        link.download = filename;
+        link.type = 'application/pdf';
+        
+        // Trigger download dan buka
+        document.body.appendChild(link);
+        link.click();
+        
+        // Coba buka di viewer juga
+        setTimeout(() => {
+            try {
+                // Buat blob URL untuk membuka
+                const blobUrl = URL.createObjectURL(pdfBlob);
+                window.open(blobUrl, '_blank', 'location=yes,enableViewportScale=yes,hidden=no');
+                
+                setTimeout(() => {
+                    URL.revokeObjectURL(blobUrl);
+                }, 5000);
+            } catch (e) {
+                console.log('Auto-open tidak tersedia di webview');
+            }
+        }, 500);
+        
+        // Clean up
+        setTimeout(() => {
+            document.body.removeChild(link);
+        }, 1000);
+        
+        showToast('PDF tersimpan di Download', 'success');
+    } else {
+        // Untuk Desktop/Browser biasa - hanya download
+        const downloadLink = document.createElement('a');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        downloadLink.href = pdfUrl;
+        downloadLink.download = filename;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        
+        // Clean up
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+        
+        showToast('PDF berhasil didownload!', 'success');
+    }
     
     } catch (error) {
         console.error('Error exporting PDF:', error);
