@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Icon</title>
+    <style>
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background: #f5f5f5;
+            font-family: Arial, sans-serif;
+            flex-direction: column;
+            gap: 20px;
+        }
+        canvas {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+        }
+        button {
+            padding: 12px 24px;
+            font-size: 16px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #388E3C;
+        }
+        .preview {
+            display: flex;
+            gap: 20px;
+            align-items: center;
+        }
+    </style>
+</head>
+<body>
+    <h2>Generate Icon Aplikasi - Dompet Keuangan</h2>
+    <div class="preview">
+        <div>
+            <canvas id="canvas192" width="192" height="192"></canvas>
+            <button onclick="downloadIcon(192)">Download 192x192</button>
+        </div>
+        <div>
+            <canvas id="canvas512" width="512" height="512"></canvas>
+            <button onclick="downloadIcon(512)">Download 512x512</button>
+        </div>
+    </div>
+
+    <script>
+        function drawIcon(canvas, size) {
+            const ctx = canvas.getContext('2d');
+            const center = size / 2;
+            const scale = size / 192;
+            
+            // Background - modern gradient
+            const bgGradient = ctx.createLinearGradient(0, 0, size, size);
+            bgGradient.addColorStop(0, '#1ABC9C');
+            bgGradient.addColorStop(1, '#16A085');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, size, size);
+            
+            // Circular background with subtle gradient
+            const circleGradient = ctx.createRadialGradient(center, center, 0, center, center, size * 0.5);
+            circleGradient.addColorStop(0, 'rgba(255, 255, 255, 0.15)');
+            circleGradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+            ctx.fillStyle = circleGradient;
+            ctx.beginPath();
+            ctx.arc(center, center, size * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw wallet icon
+            const walletWidth = size * 0.5;
+            const walletHeight = size * 0.4;
+            const walletX = center - walletWidth / 2;
+            const walletY = center - walletHeight / 2;
+            const cornerRadius = 8 * scale;
+            
+            // Wallet body - white with shadow
+            ctx.shadowColor = 'rgba(0, 0, 0, 0.2)';
+            ctx.shadowBlur = 8 * scale;
+            ctx.shadowOffsetY = 4 * scale;
+            
+            ctx.fillStyle = 'white';
+            ctx.beginPath();
+            ctx.moveTo(walletX + cornerRadius, walletY);
+            ctx.lineTo(walletX + walletWidth - cornerRadius, walletY);
+            ctx.arcTo(walletX + walletWidth, walletY, walletX + walletWidth, walletY + cornerRadius, cornerRadius);
+            ctx.lineTo(walletX + walletWidth, walletY + walletHeight - cornerRadius);
+            ctx.arcTo(walletX + walletWidth, walletY + walletHeight, walletX + walletWidth - cornerRadius, walletY + walletHeight, cornerRadius);
+            ctx.lineTo(walletX + cornerRadius, walletY + walletHeight);
+            ctx.arcTo(walletX, walletY + walletHeight, walletX, walletY + walletHeight - cornerRadius, cornerRadius);
+            ctx.lineTo(walletX, walletY + cornerRadius);
+            ctx.arcTo(walletX, walletY, walletX + cornerRadius, walletY, cornerRadius);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Reset shadow
+            ctx.shadowColor = 'transparent';
+            ctx.shadowBlur = 0;
+            ctx.shadowOffsetY = 0;
+            
+            // Wallet flap/top
+            const flapHeight = walletHeight * 0.35;
+            ctx.fillStyle = '#16A085';
+            ctx.beginPath();
+            ctx.moveTo(walletX + cornerRadius, walletY);
+            ctx.lineTo(walletX + walletWidth - cornerRadius, walletY);
+            ctx.arcTo(walletX + walletWidth, walletY, walletX + walletWidth, walletY + cornerRadius, cornerRadius);
+            ctx.lineTo(walletX + walletWidth, walletY + flapHeight);
+            ctx.lineTo(walletX, walletY + flapHeight);
+            ctx.lineTo(walletX, walletY + cornerRadius);
+            ctx.arcTo(walletX, walletY, walletX + cornerRadius, walletY, cornerRadius);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Card slot decoration
+            const slotY = walletY + flapHeight + (walletHeight - flapHeight) * 0.3;
+            const slotWidth = walletWidth * 0.6;
+            const slotHeight = 4 * scale;
+            const slotX = center - slotWidth / 2;
+            
+            ctx.fillStyle = '#1ABC9C';
+            ctx.beginPath();
+            ctx.roundRect(slotX, slotY, slotWidth, slotHeight, 2 * scale);
+            ctx.fill();
+            
+            // Rupiah symbol on wallet
+            const rpSymbolY = walletY + flapHeight + (walletHeight - flapHeight) * 0.65;
+            ctx.fillStyle = '#16A085';
+            ctx.font = `bold ${size * 0.15}px Inter, Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('Rp', center, rpSymbolY);
+            
+            // Small decorative coins
+            const coinRadius = 8 * scale;
+            const coin1X = walletX + walletWidth + 15 * scale;
+            const coin1Y = walletY - 10 * scale;
+            
+            // Coin 1
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+            ctx.beginPath();
+            ctx.arc(coin1X, coin1Y, coinRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#16A085';
+            ctx.lineWidth = 2 * scale;
+            ctx.beginPath();
+            ctx.arc(coin1X, coin1Y, coinRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Coin 2
+            const coin2X = walletX - 12 * scale;
+            const coin2Y = walletY + walletHeight + 8 * scale;
+            
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+            ctx.beginPath();
+            ctx.arc(coin2X, coin2Y, coinRadius * 0.8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.strokeStyle = '#16A085';
+            ctx.lineWidth = 1.5 * scale;
+            ctx.beginPath();
+            ctx.arc(coin2X, coin2Y, coinRadius * 0.8, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Draw both icons
+        drawIcon(document.getElementById('canvas192'), 192);
+        drawIcon(document.getElementById('canvas512'), 512);
+
+        function downloadIcon(size) {
+            const canvas = document.getElementById(`canvas${size}`);
+            const link = document.createElement('a');
+            link.download = `icon-${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>

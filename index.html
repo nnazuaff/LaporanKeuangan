@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#4CAF50">
     <meta name="description" content="Aplikasi Laporan Keuangan Pribadi - Offline">
     
@@ -11,7 +11,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     
-    <title>Laporan Keuangan - Website</title>
+    <title>Laporan Keuangan</title>
     
     <!-- PWA Manifest -->
     <link rel="manifest" href="manifest.json">
@@ -21,32 +21,9 @@
     <link rel="apple-touch-icon" href="icon-192.png">
     
     <!-- Stylesheet -->
-    <link rel="stylesheet" href="style.css?v=3.7">
+    <link rel="stylesheet" href="style.css?v=3.9">
 </head>
 <body>
-    <!-- Loading/Authentication Screen -->
-    <div id="authScreen" class="auth-screen">
-        <div class="auth-content">
-            <div class="auth-logo">
-                <svg width="80" height="80" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <rect x="8" y="12" width="24" height="18" rx="3" fill="white" opacity="0.95"/>
-                    <path d="M8 12C8 10.3431 9.34315 9 11 9H29C30.6569 9 32 10.3431 32 12V18H8V12Z" fill="rgba(255,255,255,0.3)"/>
-                    <rect x="14" y="21" width="12" height="2" rx="1" fill="#1ABC9C"/>
-                    <text x="20" y="27" font-size="7" font-weight="bold" fill="#16A085" text-anchor="middle" font-family="Arial, sans-serif">Rp</text>
-                    <circle cx="30" cy="8" r="3" fill="white" opacity="0.8"/>
-                    <circle cx="30" cy="8" r="2.5" stroke="#16A085" stroke-width="0.8" fill="none"/>
-                    <circle cx="10" cy="32" r="2.5" fill="white" opacity="0.7"/>
-                    <circle cx="10" cy="32" r="2" stroke="#16A085" stroke-width="0.7" fill="none"/>
-                </svg>
-            </div>
-            <h2>Laporan Keuangan</h2>
-            <div class="auth-spinner"></div>
-            <p class="auth-message">Memuat aplikasi...</p>
-        </div>
-    </div>
-
-    <!-- Main Content -->
-    <div id="mainContent" class="main-content hidden">
     <!-- Header -->
     <header class="header">
         <div class="header-logo">
@@ -69,11 +46,9 @@
         </div>
         <h1>Laporan Keuangan</h1>
         <p class="subtitle">Kelola keuangan pribadi Anda</p>
-        <button class="btn-security-settings" onclick="toggleSecurityModal()" title="Pengaturan Keamanan">
-            ⚙️
-        </button>
         <div class="header-buttons">
             <button class="btn-settings" onclick="toggleSaldoModal()">⚙️ Atur Saldo</button>
+            <button class="btn-settings" onclick="showChangePinModal()">🔑 Ubah PIN</button>
             <button class="btn-settings btn-export" onclick="exportToPDF()">📄 Export PDF</button>
         </div>
     </header>
@@ -122,47 +97,25 @@
 
             <div class="form-group">
                 <label for="jenis">Jenis Transaksi</label>
-                <div class="custom-select-wrapper">
-                    <div class="custom-select" id="jenisSelect">
-                        <div class="custom-select-trigger">
-                            <span data-value="pemasukan">Pemasukan</span>
-                            <svg class="custom-select-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none">
-                                <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                        </div>
-                        <div class="custom-select-options">
-                            <div class="custom-select-option active" data-value="pemasukan">Pemasukan</div>
-                            <div class="custom-select-option" data-value="pengeluaran">Pengeluaran</div>
-                        </div>
-                    </div>
-                    <input type="hidden" id="jenis" value="pemasukan" required>
-                </div>
+                <select id="jenis" required>
+                    <option value="pemasukan">Pemasukan</option>
+                    <option value="pengeluaran">Pengeluaran</option>
+                </select>
             </div>
 
             <div class="form-group">
                 <label for="kategori">Kategori</label>
-                <div class="custom-select-wrapper">
-                    <div class="custom-select" id="kategoriSelect">
-                        <div class="custom-select-trigger">
-                            <span data-value="Makan">Makan</span>
-                            <svg class="custom-select-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none">
-                                <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                            </svg>
-                        </div>
-                        <div class="custom-select-options">
-                            <div class="custom-select-option active" data-value="Makan">Makan</div>
-                            <div class="custom-select-option" data-value="Transport">Transport</div>
-                            <div class="custom-select-option" data-value="Hiburan">Hiburan</div>
-                            <div class="custom-select-option" data-value="Belanja">Belanja</div>
-                            <div class="custom-select-option" data-value="Tagihan">Tagihan</div>
-                            <div class="custom-select-option" data-value="Kesehatan">Kesehatan</div>
-                            <div class="custom-select-option" data-value="Gaji">Gaji</div>
-                            <div class="custom-select-option" data-value="Investasi">Investasi</div>
-                            <div class="custom-select-option" data-value="Lainnya">Lainnya</div>
-                        </div>
-                    </div>
-                    <input type="hidden" id="kategori" value="Makan" required>
-                </div>
+                <select id="kategori" required>
+                    <option value="Makan">Makan</option>
+                    <option value="Transport">Transport</option>
+                    <option value="Hiburan">Hiburan</option>
+                    <option value="Belanja">Belanja</option>
+                    <option value="Tagihan">Tagihan</option>
+                    <option value="Kesehatan">Kesehatan</option>
+                    <option value="Gaji">Gaji</option>
+                    <option value="Investasi">Investasi</option>
+                    <option value="Lainnya">Lainnya</option>
+                </select>
             </div>
 
             <button type="submit" class="btn-submit">Tambah Transaksi</button>
@@ -173,40 +126,18 @@
     <section class="filter-section">
         <h2>Daftar Transaksi</h2>
         <div class="filter-controls">
-            <div class="custom-select-wrapper">
-                <div class="custom-select filter-custom-select" id="filterJenisSelect">
-                    <div class="custom-select-trigger">
-                        <span data-value="semua">Semua Jenis</span>
-                        <svg class="custom-select-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none">
-                            <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div class="custom-select-options">
-                        <div class="custom-select-option active" data-value="semua">Semua Jenis</div>
-                        <div class="custom-select-option" data-value="pemasukan">Pemasukan</div>
-                        <div class="custom-select-option" data-value="pengeluaran">Pengeluaran</div>
-                    </div>
-                </div>
-                <input type="hidden" id="filterJenis" value="semua">
-            </div>
-            <div class="custom-select-wrapper">
-                <div class="custom-select filter-custom-select" id="filterPeriodeSelect">
-                    <div class="custom-select-trigger">
-                        <span data-value="semua">Semua Periode</span>
-                        <svg class="custom-select-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none">
-                            <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                        </svg>
-                    </div>
-                    <div class="custom-select-options">
-                        <div class="custom-select-option active" data-value="semua">Semua Periode</div>
-                        <div class="custom-select-option" data-value="hari-ini">Hari Ini</div>
-                        <div class="custom-select-option" data-value="minggu-ini">Minggu Ini</div>
-                        <div class="custom-select-option" data-value="bulan-ini">Bulan Ini</div>
-                        <div class="custom-select-option" data-value="custom">Pilih Tanggal</div>
-                    </div>
-                </div>
-                <input type="hidden" id="filterPeriode" value="semua">
-            </div>
+            <select id="filterJenis" class="filter-select">
+                <option value="semua">Semua Jenis</option>
+                <option value="pemasukan">Pemasukan</option>
+                <option value="pengeluaran">Pengeluaran</option>
+            </select>
+            <select id="filterPeriode" class="filter-select">
+                <option value="semua">Semua Periode</option>
+                <option value="hari-ini">Hari Ini</option>
+                <option value="minggu-ini">Minggu Ini</option>
+                <option value="bulan-ini">Bulan Ini</option>
+                <option value="custom">Pilih Tanggal</option>
+            </select>
         </div>
         
         <!-- Date Range Picker -->
@@ -237,60 +168,6 @@
             <p class="empty-subtitle">Mulai tambahkan transaksi keuangan Anda</p>
         </div>
     </section>
-
-    <!-- Modal Security Settings -->
-    <div id="securityModal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h2>🔒 Pengaturan Keamanan</h2>
-                <button class="btn-close" onclick="toggleSecurityModal()">✕</button>
-            </div>
-            
-            <div class="modal-body">
-                <div class="security-setting-item">
-                    <div class="security-setting-info">
-                        <h3>🔐 Biometric/PIN Lock</h3>
-                        <p>Gunakan fingerprint, face unlock, atau PIN HP untuk membuka aplikasi</p>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="biometricToggle" onchange="toggleBiometricSecurity(this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                
-                <div class="security-setting-item">
-                    <div class="security-setting-info">
-                        <h3>🔔 Reminder Harian</h3>
-                        <p>Pengingat untuk mencatat transaksi keuangan harian</p>
-                    </div>
-                    <label class="toggle-switch">
-                        <input type="checkbox" id="reminderToggle" onchange="toggleReminder(this.checked)">
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-                
-                <div id="reminderTimeSettings" style="display: none;">
-                    <div class="reminder-time-group">
-                        <label>⏰ Waktu Reminder:</label>
-                        <input type="time" id="reminderTime" value="20:00" class="reminder-time-input">
-                        <button onclick="saveReminderTime()" class="btn-save-reminder">Simpan Waktu</button>
-                    </div>
-                    <div class="reminder-info">
-                        <small>Notifikasi akan muncul setiap hari pada waktu yang ditentukan</small>
-                    </div>
-                </div>
-                
-                <div class="security-info-box">
-                    <p><strong>ℹ️ Informasi:</strong></p>
-                    <ul>
-                        <li>Saat diaktifkan, app akan meminta verifikasi setiap kali dibuka</li>
-                        <li>Menggunakan keamanan bawaan HP Anda (Fingerprint/Face/PIN)</li>
-                        <li>Data tetap aman tersimpan di perangkat lokal</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </div>
 
     <!-- Modal PIN -->
     <div id="pinModal" class="pin-modal">
@@ -336,7 +213,7 @@
     <div id="saldoModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
-                <h2>⚙️ Atur Saldo</h2>
+                <h2>⚙️ Atur Saldo Manual</h2>
                 <button class="btn-close" onclick="toggleSaldoModal()">✕</button>
             </div>
             
@@ -347,38 +224,29 @@
                 <form id="formSumberSaldo" class="saldo-form">
                     <div class="form-group">
                         <label for="namaSumber">Nama Sumber</label>
-                        <div class="custom-select-wrapper">
-                            <div class="custom-select" id="namaSumberSelect">
-                                <div class="custom-select-trigger">
-                                    <span data-value="">-- Pilih atau ketik manual --</span>
-                                    <svg class="custom-select-arrow" width="12" height="8" viewBox="0 0 12 8" fill="none">
-                                        <path d="M1 1L6 6L11 1" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                                    </svg>
-                                </div>
-                                <div class="custom-select-options">
-                                    <div class="custom-select-group-label">Bank</div>
-                                    <div class="custom-select-option" data-value="Bank BNI">Bank BNI</div>
-                                    <div class="custom-select-option" data-value="Bank BCA">Bank BCA</div>
-                                    <div class="custom-select-option" data-value="Bank Mandiri">Bank Mandiri</div>
-                                    <div class="custom-select-option" data-value="Bank BRI">Bank BRI</div>
-                                    <div class="custom-select-option" data-value="Bank BTN">Bank BTN</div>
-                                    <div class="custom-select-option" data-value="Bank CIMB Niaga">Bank CIMB Niaga</div>
-                                    
-                                    <div class="custom-select-group-label">E-Wallet</div>
-                                    <div class="custom-select-option" data-value="GoPay">GoPay</div>
-                                    <div class="custom-select-option" data-value="OVO">OVO</div>
-                                    <div class="custom-select-option" data-value="Dana">Dana</div>
-                                    <div class="custom-select-option" data-value="ShopeePay">ShopeePay</div>
-                                    <div class="custom-select-option" data-value="LinkAja">LinkAja</div>
-                                    
-                                    <div class="custom-select-group-label">Lainnya</div>
-                                    <div class="custom-select-option" data-value="Tunai">Tunai</div>
-                                    <div class="custom-select-option" data-value="Tabungan">Tabungan</div>
-                                    <div class="custom-select-option" data-value="Custom">Custom (ketik sendiri)</div>
-                                </div>
-                            </div>
-                            <input type="hidden" id="namaSumber" value="">
-                        </div>
+                        <select id="namaSumber">
+                            <option value="">-- Pilih atau ketik manual --</option>
+                            <optgroup label="Bank">
+                                <option value="Bank BNI">Bank BNI</option>
+                                <option value="Bank BCA">Bank BCA</option>
+                                <option value="Bank Mandiri">Bank Mandiri</option>
+                                <option value="Bank BRI">Bank BRI</option>
+                                <option value="Bank BTN">Bank BTN</option>
+                                <option value="Bank CIMB Niaga">Bank CIMB Niaga</option>
+                            </optgroup>
+                            <optgroup label="E-Wallet">
+                                <option value="GoPay">GoPay</option>
+                                <option value="OVO">OVO</option>
+                                <option value="Dana">Dana</option>
+                                <option value="ShopeePay">ShopeePay</option>
+                                <option value="LinkAja">LinkAja</option>
+                            </optgroup>
+                            <optgroup label="Lainnya">
+                                <option value="Tunai">Tunai</option>
+                                <option value="Tabungan">Tabungan</option>
+                                <option value="Custom">Custom (ketik sendiri)</option>
+                            </optgroup>
+                        </select>
                     </div>
                     
                     <div class="form-group" id="customSumberGroup" style="display: none;">
@@ -405,22 +273,42 @@
         </div>
     </div>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <p>
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">
-                <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-            </svg>
-            Created by <a href="https://www.instagram.com/nnzuaf/" target="_blank" rel="noopener noreferrer">@nnzuaf</a>
-        </p>
-    </footer>
+    <!-- Modal Download PDF -->
+    <div class="modal" id="downloadPdfModal">
+        <div class="modal-content">
+            <div style="text-align: center; padding: 20px;">
+                <div style="font-size: 48px; margin-bottom: 15px;">📄</div>
+                <h2 style="color: #1ABC9C; margin-bottom: 10px;">PDF Berhasil Dibuat!</h2>
+                <p style="color: #7f8c8d; margin-bottom: 25px;">Klik tombol di bawah untuk mendownload PDF Anda</p>
+                
+                <a id="downloadPdfLink" href="#" download="" class="btn-submit" style="display: inline-block; text-decoration: none; padding: 12px 30px; margin-bottom: 15px;">
+                    📥 Download PDF
+                </a>
+                
+                <p style="font-size: 13px; color: #95a5a6; margin-top: 15px;">
+                    <span id="pdfFilename"></span>
+                </p>
+                
+                <button onclick="closePdfDownloadModal()" class="btn-cancel" style="margin-top: 15px;">Tutup</button>
+            </div>
+        </div>
     </div>
-    <!-- End Main Content -->
+
+    <!-- Footer -->
+    <!--<footer class="footer">-->
+    <!--    <p>Data tersimpan lokal di perangkat Anda</p>-->
+    <!--    <p>-->
+    <!--        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align: middle; margin-right: 4px;">-->
+    <!--            <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>-->
+    <!--        </svg>-->
+    <!--        Created by <a href="https://www.instagram.com/nnzuaf/" target="_blank" rel="noopener noreferrer">@nnzuaf</a>-->
+    <!--    </p>-->
+    <!--</footer>-->
 
     <!-- jsPDF Library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     
     <!-- JavaScript -->
-    <script src="app.js?v=3.7"></script>
+    <script src="app.js?v=3.8"></script>
 </body>
 </html>
