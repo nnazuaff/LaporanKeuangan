@@ -164,28 +164,6 @@ button:active, input:active, select:active {
     margin: 0;
 }
 
-.btn-settings {
-    margin-top: 8px;
-    padding: 10px 20px;
-    background: rgba(255, 255, 255, 0.15);
-    color: white;
-    border: 1px solid rgba(255, 255, 255, 0.25);
-    border-radius: 8px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s ease;
-}
-
-.btn-settings:hover {
-    background: rgba(255, 255, 255, 0.25);
-    transform: translateY(-1px);
-}
-
-.btn-settings:active {
-    transform: translateY(0);
-}
-
 .btn-secondary {
     padding: 12px 24px;
     background: var(--bg-color);
